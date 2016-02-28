@@ -1,0 +1,11 @@
+[package]
+name = "platform-rs"
+version = "0.1.0"
+authors = ["funnydog <funnydog@users.noreply.github.com>"]
+
+[dependencies]
+rand = "0.3"
+sdl2 = "0.13"
+sdl2_image = "1.0.0"
+sdl2_ttf = "0.13.1"
+time = ">=0.1"
