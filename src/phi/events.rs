@@ -1,3 +1,4 @@
+// src/phi/events.rs
 
 macro_rules! struct_events {
     (
@@ -54,6 +55,7 @@ macro_rules! struct_events {
                         KeyDown { keycode, .. } => match keycode {
                             $(
                                 Some($k_sdl) => {
+                                    // debouncing
                                     if !self.$k_alias {
                                         self.now.$k_alias = Some(true);
                                     }

@@ -58,7 +58,7 @@ impl MenuView {
 }
 
 impl View for MenuView {
-    fn render(&mut self, phi: &mut Phi, elapsed: f64) -> ViewAction {
+    fn render(&mut self, phi: &mut Phi, _: f64) -> ViewAction {
         if phi.events.now.quit || phi.events.now.key_escape == Some(true) {
             return ViewAction::Quit
         }

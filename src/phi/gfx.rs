@@ -65,13 +65,31 @@ impl Renderable for Sprite {
     }
 }
 
-pub struct AnimatedSpriteDescr<'a> {
-    pub image_path: &'a str,
-    pub total_frames: usize,
-    pub frames_high: usize,
-    pub frames_wide: usize,
-    pub frame_w: f64,
-    pub frame_h: f64,
+pub enum ASDescr<'a> {
+    LoadFromStart {
+        image_path: &'a str,
+        total_frames: usize,
+        frames_high: usize,
+        frames_wide: usize,
+        frame_w: f64,
+        frame_h: f64,
+    },
+
+    SingleFrame {
+        image_path: &'a str,
+        frame_x: f64,
+        frame_y: f64,
+        frame_w: f64,
+        frame_h: f64,
+    },
+
+    LoadFromRegion {
+        image_path: &'a str,
+        rect: Rectangle,
+        total_frames: usize,
+        frame_w: f64,
+        frame_h: f64,
+    },
 }
 
 #[derive(Clone)]
@@ -85,14 +103,17 @@ pub struct AnimatedSprite {
     // the total time the sprite has been alive from which
     // the current frame is derived
     current_time: f64,
+    max_time: f64,
 }
 
 impl AnimatedSprite {
     pub fn new(sprites: Vec<Sprite>, frame_delay: f64) -> AnimatedSprite {
+        let max_time = sprites.len() as f64 * frame_delay;
         AnimatedSprite {
             sprites: Rc::new(sprites),
             frame_delay: frame_delay,
             current_time: 0.0,
+            max_time: max_time,
         }
     }
 
@@ -100,10 +121,10 @@ impl AnimatedSprite {
     // every second.
     pub fn with_fps(sprites: Vec<Sprite>, fps: f64) -> AnimatedSprite {
         if fps == 0.0 {
-            panic!("Passed 0 to AnimatedSprite::with_fps");
+            AnimatedSprite::new(sprites, 0.0)
+        } else {
+            AnimatedSprite::new(sprites, 1.0 / fps)
         }
-
-        AnimatedSprite::new(sprites, 1.0 / fps)
     }
 
     // number of frames composing the animation.
@@ -121,10 +142,10 @@ impl AnimatedSprite {
     // if the value is negative then we "rewind" the animation
     pub fn set_fps(&mut self, fps: f64) {
         if fps == 0.0 {
-            panic!("Passed 0 to AnimatedSprite::set_fps");
+            self.set_frame_delay(0.0);
+        } else {
+            self.set_frame_delay(1.0 / fps);
         }
-
-        self.set_frame_delay(1.0 / fps);
     }
 
     // Add a certain amount of time, in second, to the `current_time` of the
@@ -133,37 +154,105 @@ impl AnimatedSprite {
         self.current_time += dt;
 
         if self.current_time < 0.0 {
-            self.current_time = (self.frames() - 1) as f64 * self.frame_delay;
+            self.current_time += self.max_time;
+        } else if self.current_time >= self.max_time {
+            self.current_time -= self.max_time;
         }
     }
 
-    pub fn load_frames(phi: &mut Phi, descr: AnimatedSpriteDescr) -> Vec<Sprite> {
-        let spritesheet = Sprite::load(&mut phi.renderer, descr.image_path).unwrap();
-        let mut frames = Vec::with_capacity(descr.total_frames);
+    pub fn load(phi: &mut Phi, descr: ASDescr, fps: f64) -> AnimatedSprite {
+        match descr {
+            // many frames starting from 0,0
+            ASDescr::LoadFromStart {
+                image_path,
+                total_frames,
+                frames_high,
+                frames_wide,
+                frame_w,
+                frame_h
+            } => {
+                let spritesheet = Sprite::load(&mut phi.renderer, image_path).unwrap();
+                let mut frames = Vec::with_capacity(total_frames);
 
-        for yth in 0..descr.frames_high {
-            for xth in 0..descr.frames_wide {
-                if descr.frames_wide * yth + xth >= descr.total_frames {
-                    break;
+                for yth in 0..frames_high {
+                    for xth in 0..frames_wide {
+                        if frames_wide * yth + xth >= total_frames {
+                            break;
+                        }
+
+                        frames.push(
+                            spritesheet.region(Rectangle {
+                                w: frame_w,
+                                h: frame_h,
+                                x: frame_w * xth as f64,
+                                y: frame_h * yth as f64,
+                            }).unwrap());
+                    }
                 }
 
-                frames.push(
-                    spritesheet.region(Rectangle {
-                        w: descr.frame_w,
-                        h: descr.frame_h,
-                        x: descr.frame_w * xth as f64,
-                        y: descr.frame_h * yth as f64,
-                    }).unwrap());
-            }
-        }
+                AnimatedSprite::new(frames, 1.0 / fps)
+            },
 
-        frames
+            ASDescr::LoadFromRegion {
+                image_path,
+                rect,
+                total_frames,
+                frame_w,
+                frame_h,
+            } => {
+                let spritesheet = Sprite::load(&mut phi.renderer, image_path).unwrap();
+                let mut frames = Vec::with_capacity(total_frames);
+                let mut region = Rectangle {
+                    x: rect.x,
+                    y: rect.y,
+                    w: frame_w,
+                    h: frame_h,
+                };
+
+                for _ in 0..total_frames {
+                    frames.push(spritesheet.region(region).unwrap());
+                    if region.x + region.w + frame_w > rect.x + rect.w {
+                        region.y = rect.y;
+                        region.x = rect.x;
+
+                        if region.y + region.h > rect.y + rect.w {
+                            panic!("region exceeded");
+                        }
+                    }
+                }
+
+                AnimatedSprite::new(frames, 1.0 / fps)
+            },
+
+            // one still frame
+            ASDescr::SingleFrame {
+                image_path,
+                frame_x,
+                frame_y,
+                frame_w,
+                frame_h,
+            } => {
+                let spritesheet = Sprite::load(&mut phi.renderer, image_path).unwrap();
+                AnimatedSprite::new(
+                    vec![
+                        spritesheet.region(Rectangle {
+                            x: frame_x,
+                            y: frame_y,
+                            w: frame_w,
+                            h: frame_h,
+                        }).unwrap(),
+                    ], 0.0)
+            },
+        }
     }
 }
 
 impl Renderable for AnimatedSprite {
     fn render(&self, renderer: &mut Renderer, dest: Rectangle) {
-        let current_frame = (self.current_time  / self.frame_delay) as usize % self.frames();
+        let current_frame = match self.frame_delay {
+            0.0 => 0,
+            d @_ => (self.current_time  / d) as usize % self.frames(),
+        };
 
         let sprite = &self.sprites[current_frame];
         sprite.render(renderer, dest);
