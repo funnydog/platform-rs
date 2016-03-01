@@ -2,15 +2,19 @@
 
 use phi::{Phi, View, ViewAction};
 use phi::data::Rectangle;
-use phi::gfx::{AnimatedSprite, ASDescr, CopySprite, Sprite};
+use phi::gfx::{AnimatedSprite, CopySprite};
 use sdl2::pixels::Color;
 
 // constants
 const DEBUG: bool = true;
-const PLAYER_SPEED: f64 = 180.0;
+
+const GRAVITY: f64 = 24.0;
+
+const PLAYER_SPEED: f64 = 120.0;
 const PLAYER_HEIGHT: f64 = 48.0;
 const PLAYER_WIDTH: f64 = 32.0;
 const PLAYER_FPS: f64 = 15.0;
+const PLAYER_JUMP_IMPULSE: f64 = -10.0;
 
 #[derive(Clone, Copy)]
 enum PlayerFrame {
@@ -24,17 +28,25 @@ enum PlayerFrame {
     JumpRight = 7,
 }
 
+enum PlayerDirection {
+    Left,
+    Right,
+}
+
 // types
 struct Player {
+    yvel: f64,
     rect: Rectangle,
     sprites: Vec<AnimatedSprite>,
     current: PlayerFrame,
+    direction: PlayerDirection,
 }
 
 impl Player {
     pub fn new(phi: &mut Phi) -> Player {
+        use ::phi::gfx::ASDescr::*;
         let sprites = vec![
-            AnimatedSprite::load(phi, ASDescr::SingleFrame {
+            AnimatedSprite::load(phi, SingleFrame {
                 image_path: "assets/player_still_left.png",
                 frame_x: PLAYER_WIDTH,
                 frame_y: 0.0,
@@ -42,7 +54,7 @@ impl Player {
                 frame_h: PLAYER_HEIGHT,
             }, 1.0),
 
-            AnimatedSprite::load(phi, ASDescr::SingleFrame {
+            AnimatedSprite::load(phi, SingleFrame {
                 image_path: "assets/player_still_right.png",
                 frame_x: PLAYER_WIDTH,
                 frame_y: 0.0,
@@ -50,7 +62,7 @@ impl Player {
                 frame_h: PLAYER_HEIGHT,
             }, 1.0),
 
-            AnimatedSprite::load(phi, ASDescr::SingleFrame {
+            AnimatedSprite::load(phi, SingleFrame {
                 image_path: "assets/player_still_left.png",
                 frame_x: 0.0,
                 frame_y: PLAYER_HEIGHT,
@@ -58,7 +70,7 @@ impl Player {
                 frame_h: PLAYER_HEIGHT,
             }, 1.0),
 
-            AnimatedSprite::load(phi, ASDescr::SingleFrame {
+            AnimatedSprite::load(phi, SingleFrame {
                 image_path: "assets/player_still_right.png",
                 frame_x: 0.0,
                 frame_y: PLAYER_HEIGHT,
@@ -66,7 +78,7 @@ impl Player {
                 frame_h: PLAYER_HEIGHT,
             }, 1.0),
 
-            AnimatedSprite::load(phi, ASDescr::LoadFromStart {
+            AnimatedSprite::load(phi, LoadFromStart {
                 image_path: "assets/player_walk_left.png",
                 total_frames: 14,
                 frames_high: 4,
@@ -75,7 +87,7 @@ impl Player {
                 frame_h: PLAYER_HEIGHT,
             }, PLAYER_FPS),
 
-            AnimatedSprite::load(phi, ASDescr::LoadFromStart {
+            AnimatedSprite::load(phi, LoadFromStart {
                 image_path: "assets/player_walk_right.png",
                 total_frames: 14,
                 frames_high: 4,
@@ -84,7 +96,7 @@ impl Player {
                 frame_h: PLAYER_HEIGHT,
             }, PLAYER_FPS),
 
-            AnimatedSprite::load(phi, ASDescr::SingleFrame {
+            AnimatedSprite::load(phi, SingleFrame {
                 image_path: "assets/player_still_left.png",
                 frame_x: 0.0,
                 frame_y: 0.0,
@@ -92,7 +104,7 @@ impl Player {
                 frame_h: PLAYER_HEIGHT,
             }, 1.0),
 
-            AnimatedSprite::load(phi, ASDescr::SingleFrame {
+            AnimatedSprite::load(phi, SingleFrame {
                 image_path: "assets/player_still_right.png",
                 frame_x: 0.0,
                 frame_y: 0.0,
@@ -102,6 +114,7 @@ impl Player {
         ];
 
         Player {
+            yvel: 0.0,
             rect: Rectangle {
                 x: 64.0,
                 y: 64.0,
@@ -110,40 +123,79 @@ impl Player {
             },
             sprites: sprites,
             current: PlayerFrame::StandRight,
+            direction: PlayerDirection::Right,
         }
     }
 
     pub fn update(&mut self, phi: &mut Phi, elapsed: f64) {
         use self::PlayerFrame::*;
+        use self::PlayerDirection::*;
 
-        let diagonal =
-            (phi.events.key_up ^ phi.events.key_down) &&
-            (phi.events.key_left ^ phi.events.key_right);
+        let moved = PLAYER_SPEED * elapsed;
 
-        let moved = if diagonal { 1.0 / 2.0f64.sqrt() } else { 1.0 } * PLAYER_SPEED * elapsed;
+        let mut dx: f64 = 0.0;
+        if phi.events.key_left {
+            dx -= moved;
+        }
+        if phi.events.key_right {
+            dx += moved;
+        }
 
-        let dx = match (phi.events.key_left, phi.events.key_right) {
-            (true, true) | (false, false) => 0.0,
-            (true, false) => -moved,
-            (false, true) => moved,
-        };
+        // determine the facing direction of the player
+        if dx < 0.0 {
+            self.direction = Left;
+        } else if dx > 0.0 {
+            self.direction = Right;
+        }
 
-        let dy = match (phi.events.key_up, phi.events.key_down) {
-            (true, true) | (false, false) => 0.0,
-            (true, false) => -moved,
-            (false, true) => moved,
-        };
-
-        self.current = match self.current {
-            WalkLeft if dx == 0.0 => StandLeft,
-            WalkRight if dx == 0.0 => StandRight,
-            _ if dx < 0.0 => WalkLeft,
-            _ if dx > 0.0 => WalkRight,
-            _ => self.current,
-        };
-
+        self.rect.y += self.yvel;
         self.rect.x += dx;
-        self.rect.y += dy;
+        let movable_region = Rectangle {
+            x: 0.0,
+            y: 0.0,
+            w: phi.output_size().0,
+            h: phi.output_size().1 * 0.7,
+        };
+
+        self.rect = self.rect.move_inside(movable_region).unwrap();
+
+        let touchground: bool = self.rect.y + self.rect.h >= movable_region.h;
+        if !touchground {
+            self.yvel += GRAVITY * elapsed;
+        } else if phi.events.key_up {
+            self.yvel = PLAYER_JUMP_IMPULSE;
+        } else {
+            self.yvel = 0.0;
+        }
+
+        match self.direction {
+            Left => {
+                if dx == 0.0 && touchground {
+                    if phi.events.key_down {
+                        self.current = SitLeft;
+                    } else {
+                        self.current = StandLeft;
+                    }
+                } else if !touchground {
+                    self.current = JumpLeft;
+                } else {
+                    self.current = WalkLeft;
+                }
+            },
+            Right => {
+                if dx == 0.0 && touchground {
+                    if phi.events.key_down {
+                        self.current = SitRight;
+                    } else {
+                        self.current = StandRight;
+                    }
+                } else if !touchground {
+                    self.current = JumpRight;
+                } else {
+                    self.current = WalkRight;
+                }
+            },
+        };
 
         self.sprites[self.current as usize].add_time(elapsed);
     }
@@ -151,6 +203,15 @@ impl Player {
     pub fn render(&self, phi: &mut Phi) {
         let cursprite = &self.sprites[self.current as usize];
         if DEBUG {
+            let movable_region = Rectangle {
+                x: 0.0,
+                y: 0.0,
+                w: phi.output_size().0,
+                h: phi.output_size().1 * 0.7,
+            };
+            phi.renderer.set_draw_color(Color::RGB(200,100,30));
+            phi.renderer.fill_rect(movable_region.to_sdl());
+
             phi.renderer.set_draw_color(Color::RGB(200,200,50));
             phi.renderer.fill_rect(self.rect.to_sdl());
         }
