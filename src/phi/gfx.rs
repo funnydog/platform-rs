@@ -121,10 +121,10 @@ impl AnimatedSprite {
     // every second.
     pub fn with_fps(sprites: Vec<Sprite>, fps: f64) -> AnimatedSprite {
         if fps == 0.0 {
-            AnimatedSprite::new(sprites, 0.0)
-        } else {
-            AnimatedSprite::new(sprites, 1.0 / fps)
+            panic!("Passed 0.0 to AnimatedSprite::with_fps()");
         }
+
+        AnimatedSprite::new(sprites, 1.0 / fps)
     }
 
     // number of frames composing the animation.
@@ -142,10 +142,9 @@ impl AnimatedSprite {
     // if the value is negative then we "rewind" the animation
     pub fn set_fps(&mut self, fps: f64) {
         if fps == 0.0 {
-            self.set_frame_delay(0.0);
-        } else {
-            self.set_frame_delay(1.0 / fps);
+            panic!("Passed 0.0 to AnimatedSprite::set_fps()");
         }
+        self.set_frame_delay(1.0 / fps);
     }
 
     // Add a certain amount of time, in second, to the `current_time` of the
@@ -249,10 +248,7 @@ impl AnimatedSprite {
 
 impl Renderable for AnimatedSprite {
     fn render(&self, renderer: &mut Renderer, dest: Rectangle) {
-        let current_frame = match self.frame_delay {
-            0.0 => 0,
-            d @_ => (self.current_time  / d) as usize % self.frames(),
-        };
+        let current_frame = (self.current_time  / self.frame_delay) as usize % self.frames();
 
         let sprite = &self.sprites[current_frame];
         sprite.render(renderer, dest);
