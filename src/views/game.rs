@@ -249,8 +249,12 @@ impl GameView {
 
 impl View for GameView {
     fn render(&mut self, phi: &mut Phi, elapsed: f64) -> ViewAction {
-        if phi.events.now.quit || phi.events.now.key_escape == Some(true) {
+        if phi.events.now.quit {
             return ViewAction::Quit
+        }
+
+        if phi.events.now.key_escape == Some(true) {
+            return ViewAction::ChangeView(Box::new(::views::menu::MenuView::new(phi)))
         }
 
         self.player.update(phi, elapsed);
