@@ -5,11 +5,13 @@ use phi::Phi;
 use std::cell::RefCell;
 use std::path::Path;
 use std::rc::Rc;
+
+use sdl2::rect::Rect as SdlRect;
 use sdl2::render::{Renderer, Texture};
 use sdl2_image::LoadTexture;
 
 pub trait Renderable {
-    fn render(&self, renderer: &mut Renderer, dest: Rectangle);
+    fn render(&self, renderer: &mut Renderer, dest: &SdlRect);
 }
 
 #[derive(Clone)]
@@ -60,8 +62,8 @@ impl Sprite {
 }
 
 impl Renderable for Sprite {
-    fn render(&self, renderer: &mut Renderer, dest: Rectangle) {
-        renderer.copy(&mut self.tex.borrow_mut(), Some(self.src.to_sdl()), Some(dest.to_sdl()))
+    fn render(&self, renderer: &mut Renderer, dest: &SdlRect) {
+        renderer.copy(&mut self.tex.borrow_mut(), Some(self.src.to_sdl()), Some(*dest))
     }
 }
 
@@ -247,7 +249,7 @@ impl AnimatedSprite {
 }
 
 impl Renderable for AnimatedSprite {
-    fn render(&self, renderer: &mut Renderer, dest: Rectangle) {
+    fn render(&self, renderer: &mut Renderer, dest: &SdlRect) {
         let current_frame = (self.current_time  / self.frame_delay) as usize % self.frames();
 
         let sprite = &self.sprites[current_frame];
@@ -256,11 +258,11 @@ impl Renderable for AnimatedSprite {
 }
 
 pub trait CopySprite<T> {
-    fn copy_sprite(&mut self, renderable: &T, dest: Rectangle);
+    fn copy_sprite(&mut self, renderable: &T, dest: &SdlRect);
 }
 
 impl<'window, T: Renderable> CopySprite<T> for Renderer<'window> {
-    fn copy_sprite(&mut self, renderable: &T, dest: Rectangle) {
+    fn copy_sprite(&mut self, renderable: &T, dest: &SdlRect) {
         renderable.render(self, dest);
     }
 }

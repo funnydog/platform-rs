@@ -48,7 +48,7 @@ macro_rules! struct_events {
                     use sdl2::keyboard::Keycode::*;
 
                     match event {
-                        Window { win_event_id: Resized, .. } => {
+                        Window { win_event_id: _, .. } => {
                             self.now.resize = Some(renderer.output_size().unwrap());
                         },
 

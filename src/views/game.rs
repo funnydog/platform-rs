@@ -1,5 +1,6 @@
 // src/views/game.rs
 
+use glm::Vector2;
 use phi::{Phi, View, ViewAction};
 use phi::data::Rectangle;
 use phi::gfx::{AnimatedSprite, CopySprite};
@@ -36,7 +37,7 @@ enum PlayerDirection {
 // types
 struct Player {
     yvel: f64,
-    rect: Rectangle,
+    pos: Vector2<f64>,
     sprites: Vec<AnimatedSprite>,
     current: PlayerFrame,
     direction: PlayerDirection,
@@ -115,11 +116,9 @@ impl Player {
 
         Player {
             yvel: 0.0,
-            rect: Rectangle {
+            pos: Vector2 {
                 x: 64.0,
                 y: 64.0,
-                w: PLAYER_WIDTH,
-                h: PLAYER_HEIGHT,
             },
             sprites: sprites,
             current: PlayerFrame::StandRight,
@@ -148,8 +147,8 @@ impl Player {
             self.direction = Right;
         }
 
-        self.rect.y += self.yvel;
-        self.rect.x += dx;
+        self.pos.x += dx;
+        self.pos.y += self.yvel;
         let movable_region = Rectangle {
             x: 0.0,
             y: 0.0,
@@ -157,9 +156,18 @@ impl Player {
             h: phi.output_size().1 * 0.7,
         };
 
-        self.rect = self.rect.move_inside(movable_region).unwrap();
+        let dest_rect = Rectangle {
+            x: self.pos.x,
+            y: self.pos.y,
+            w: PLAYER_WIDTH,
+            h: PLAYER_HEIGHT,
+        };
 
-        let touchground: bool = self.rect.y + self.rect.h >= movable_region.h;
+        let dest_rect = dest_rect.move_inside(movable_region).unwrap();
+        self.pos.x = dest_rect.x;
+        self.pos.y = dest_rect.y;
+
+        let touchground: bool = dest_rect.y + dest_rect.h >= movable_region.h;
         if !touchground {
             self.yvel += GRAVITY * elapsed;
         } else if phi.events.key_up {
@@ -202,6 +210,13 @@ impl Player {
 
     pub fn render(&self, phi: &mut Phi) {
         let cursprite = &self.sprites[self.current as usize];
+        let rect = Rectangle {
+            x: self.pos.x,
+            y: self.pos.y,
+            w: PLAYER_WIDTH,
+            h: PLAYER_HEIGHT,
+        }.to_sdl();
+
         if DEBUG {
             let movable_region = Rectangle {
                 x: 0.0,
@@ -210,13 +225,13 @@ impl Player {
                 h: phi.output_size().1 * 0.7,
             };
             phi.renderer.set_draw_color(Color::RGB(200,100,30));
-            phi.renderer.fill_rect(movable_region.to_sdl());
+            phi.renderer.fill_rect(movable_region.to_sdl()).unwrap();
 
             phi.renderer.set_draw_color(Color::RGB(200,200,50));
-            phi.renderer.fill_rect(self.rect.to_sdl());
+            phi.renderer.fill_rect(rect).unwrap();
         }
 
-        phi.renderer.copy_sprite(cursprite, self.rect);
+        phi.renderer.copy_sprite(cursprite, &rect);
     }
 }
 

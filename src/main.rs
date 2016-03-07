@@ -1,5 +1,6 @@
 // src/main.rs
 
+extern crate glm;
 extern crate sdl2;
 extern crate sdl2_image;
 extern crate sdl2_ttf;

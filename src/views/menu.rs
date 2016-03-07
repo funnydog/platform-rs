@@ -95,7 +95,7 @@ impl View for MenuView {
             h: box_h + BORDER_WIDTH * 2.0 + MARGIN_H * 2.0,
             x: (win_w - BOX_W) / 2.0 - BORDER_WIDTH,
             y: (win_h - box_h) / 2.0 - MARGIN_H - BORDER_WIDTH,
-        }.to_sdl());
+        }.to_sdl()).unwrap();
 
         phi.renderer.set_draw_color(Color::RGB(140,30,140));
         phi.renderer.fill_rect(Rectangle {
@@ -103,7 +103,7 @@ impl View for MenuView {
             h: box_h + MARGIN_H * 2.0,
             x: (win_w - BOX_W) / 2.0,
             y: (win_h - box_h) / 2.0 - MARGIN_H,
-        }.to_sdl());
+        }.to_sdl()).unwrap();
 
         // render the labels
         for (i, action) in self.actions.iter().enumerate() {
@@ -114,12 +114,12 @@ impl View for MenuView {
             };
 
             let (w, h) = sprite.size();
-            phi.renderer.copy_sprite(sprite, Rectangle {
+            phi.renderer.copy_sprite(sprite, &Rectangle {
                 w: w,
                 h: h,
                 x: (win_w - w) / 2.0,
                 y: (win_h - box_h + LABEL_H - h) / 2.0 + LABEL_H * i as f64,
-            });
+            }.to_sdl());
         }
 
         ViewAction::None
