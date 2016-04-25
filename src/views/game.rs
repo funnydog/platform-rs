@@ -1,9 +1,11 @@
 // src/views/game.rs
 
-use glm::Vector2;
+use glm::*;
+
 use phi::{Phi, View, ViewAction};
 use phi::data::Rectangle;
-use phi::gfx::{AnimatedSprite, CopySprite};
+use phi::gfx::{AnimatedSprite, CopySprite, Sprite};
+
 use sdl2::pixels::Color;
 
 // constants
@@ -34,7 +36,6 @@ enum PlayerDirection {
     Right,
 }
 
-// types
 struct Player {
     yvel: f64,
     pos: Vector2<f64>,
@@ -126,6 +127,15 @@ impl Player {
         }
     }
 
+    pub fn bounding_rect(&self) -> Rectangle {
+        Rectangle {
+            x: self.pos.x,
+            y: self.pos.y,
+            w: PLAYER_WIDTH,
+            h: PLAYER_HEIGHT,
+        }
+    }
+
     pub fn update(&mut self, phi: &mut Phi, elapsed: f64) {
         use self::PlayerFrame::*;
         use self::PlayerDirection::*;
@@ -156,54 +166,48 @@ impl Player {
             h: phi.output_size().1 * 0.7,
         };
 
-        let dest_rect = Rectangle {
-            x: self.pos.x,
-            y: self.pos.y,
-            w: PLAYER_WIDTH,
-            h: PLAYER_HEIGHT,
-        };
+        if let Some(rect) = self.bounding_rect().move_inside(movable_region) {
+            self.pos.x = rect.x;
+            self.pos.y = rect.y;
 
-        let dest_rect = dest_rect.move_inside(movable_region).unwrap();
-        self.pos.x = dest_rect.x;
-        self.pos.y = dest_rect.y;
+            let touchground: bool = rect.y + rect.h >= movable_region.h;
+            if !touchground {
+                self.yvel += GRAVITY * elapsed;
+            } else if phi.events.key_up {
+                self.yvel = PLAYER_JUMP_IMPULSE;
+            } else {
+                self.yvel = 0.0;
+            }
 
-        let touchground: bool = dest_rect.y + dest_rect.h >= movable_region.h;
-        if !touchground {
-            self.yvel += GRAVITY * elapsed;
-        } else if phi.events.key_up {
-            self.yvel = PLAYER_JUMP_IMPULSE;
-        } else {
-            self.yvel = 0.0;
+            match self.direction {
+                Left => {
+                    if dx == 0.0 && touchground {
+                        if phi.events.key_down {
+                            self.current = SitLeft;
+                        } else {
+                            self.current = StandLeft;
+                        }
+                    } else if !touchground {
+                        self.current = JumpLeft;
+                    } else {
+                        self.current = WalkLeft;
+                    }
+                },
+                Right => {
+                    if dx == 0.0 && touchground {
+                        if phi.events.key_down {
+                            self.current = SitRight;
+                        } else {
+                            self.current = StandRight;
+                        }
+                    } else if !touchground {
+                        self.current = JumpRight;
+                    } else {
+                        self.current = WalkRight;
+                    }
+                },
+            };
         }
-
-        match self.direction {
-            Left => {
-                if dx == 0.0 && touchground {
-                    if phi.events.key_down {
-                        self.current = SitLeft;
-                    } else {
-                        self.current = StandLeft;
-                    }
-                } else if !touchground {
-                    self.current = JumpLeft;
-                } else {
-                    self.current = WalkLeft;
-                }
-            },
-            Right => {
-                if dx == 0.0 && touchground {
-                    if phi.events.key_down {
-                        self.current = SitRight;
-                    } else {
-                        self.current = StandRight;
-                    }
-                } else if !touchground {
-                    self.current = JumpRight;
-                } else {
-                    self.current = WalkRight;
-                }
-            },
-        };
 
         self.sprites[self.current as usize].add_time(elapsed);
     }
@@ -218,15 +222,6 @@ impl Player {
         }.to_sdl();
 
         if DEBUG {
-            let movable_region = Rectangle {
-                x: 0.0,
-                y: 0.0,
-                w: phi.output_size().0,
-                h: phi.output_size().1 * 0.7,
-            };
-            phi.renderer.set_draw_color(Color::RGB(200,100,30));
-            phi.renderer.fill_rect(movable_region.to_sdl()).unwrap();
-
             phi.renderer.set_draw_color(Color::RGB(200,200,50));
             phi.renderer.fill_rect(rect).unwrap();
         }
@@ -237,12 +232,18 @@ impl Player {
 
 pub struct GameView {
     player: Player,
+    layers: Vec<Sprite>,
 }
 
 impl GameView {
     pub fn new(phi: &mut Phi) -> GameView {
         GameView {
             player: Player::new(phi),
+            layers: vec![
+                Sprite::load(&mut phi.renderer, "assets/background0.png").unwrap(),
+                Sprite::load(&mut phi.renderer, "assets/background1.png").unwrap(),
+                Sprite::load(&mut phi.renderer, "assets/background2.png").unwrap(),
+            ],
         }
     }
 }
@@ -267,6 +268,17 @@ impl View for GameView {
         // Clear the screen
         phi.renderer.set_draw_color(Color::RGB(0,0,50));
         phi.renderer.clear();
+
+        // Draw the background layers
+        for layer in &self.layers {
+            let (w, h) = layer.size();
+            phi.renderer.copy_sprite(layer, &Rectangle {
+                x: 0.0,
+                y: 0.0,
+                w: w,
+                h: h,
+            }.to_sdl());
+        }
 
         // Draw the player
         self.player.render(phi);
