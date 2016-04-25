@@ -44,7 +44,7 @@ impl MenuView {
         MenuView {
             actions: vec![
                 Action::new(phi, "New Game", Box::new(|phi| {
-                    ViewAction::ChangeView(Box::new((::views::game::GameView::new(phi))))
+                    ViewAction::Render(Box::new((::views::game::GameView::new(phi))))
                 })),
 
                 Action::new(phi, "Quit", Box::new(|_| {
@@ -58,15 +58,18 @@ impl MenuView {
 }
 
 impl View for MenuView {
-    fn render(&mut self, phi: &mut Phi, _: f64) -> ViewAction {
+    fn update(mut self: Box<Self>, phi: &mut Phi, _: f64) -> ViewAction {
+        // Quit if the player wants to quit or presses 'Escape'
         if phi.events.now.quit || phi.events.now.key_escape == Some(true) {
             return ViewAction::Quit
         }
 
+        // Execute the currently selected action if requested
         if phi.events.now.key_space == Some(true) {
             return (self.actions[self.selected as usize].func)(phi)
         }
 
+        // Change the selected action using the keyboard
         if phi.events.now.key_up == Some(true) {
             self.selected -= 1;
             if self.selected < 0 {
@@ -81,7 +84,11 @@ impl View for MenuView {
             }
         }
 
-        // rendering
+        ViewAction::Render(self)
+    }
+
+    fn render(&self, phi: &mut Phi) {
+        // Clear the screen
         phi.renderer.set_draw_color(Color::RGB(0,0,20));
         phi.renderer.clear();
 
@@ -121,7 +128,5 @@ impl View for MenuView {
                 y: (win_h - box_h + LABEL_H - h) / 2.0 + LABEL_H * i as f64,
             }.to_sdl());
         }
-
-        ViewAction::None
     }
 }

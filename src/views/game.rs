@@ -248,22 +248,27 @@ impl GameView {
 }
 
 impl View for GameView {
-    fn render(&mut self, phi: &mut Phi, elapsed: f64) -> ViewAction {
+    fn update(mut self: Box<Self>, phi: &mut Phi, elapsed: f64) -> ViewAction {
         if phi.events.now.quit {
             return ViewAction::Quit
         }
 
         if phi.events.now.key_escape == Some(true) {
-            return ViewAction::ChangeView(Box::new(::views::menu::MenuView::new(phi)))
+            return ViewAction::Render(Box::new(
+                ::views::menu::MenuView::new(phi)))
         }
 
         self.player.update(phi, elapsed);
 
+        ViewAction::Render(self)
+    }
+
+    fn render(&self, phi: &mut Phi) {
+        // Clear the screen
         phi.renderer.set_draw_color(Color::RGB(0,0,50));
         phi.renderer.clear();
 
+        // Draw the player
         self.player.render(phi);
-
-        ViewAction::None
     }
 }

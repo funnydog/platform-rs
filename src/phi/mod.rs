@@ -74,13 +74,23 @@ impl<'window> Phi<'window> {
 }
 
 pub enum ViewAction {
-    None,
+    Render(Box<View>),
     Quit,
-    ChangeView(Box<View>),
 }
 
 pub trait View {
-    fn render(&mut self, context: &mut Phi, elapsed: f64) -> ViewAction;
+    /// Called on every frame to take care of the logic of the program. From
+    /// user inputs and the instance's internal state, determine whether to
+    /// render itself or another view, close the window, etc.
+    ///
+    /// `elapsed` is expressed in seconds.
+    fn update(self: Box<Self>, context: &mut Phi, elapsed: f64) -> ViewAction;
+
+
+    /// Called on every frame to take care rendering the current view. It
+    /// disallows mutating the object by default, although you may still do it
+    /// through a `RefCell` if you need to.
+    fn render(&self, context: &mut Phi);
 }
 
 /// Create a window with name `title`, initialize the underlying libraries and
@@ -163,16 +173,16 @@ pub fn spawn<F>(title: &str, init: F)
 
         // logic and rendering
         context.events.pump(&mut context.renderer);
-        match current_view.render(&mut context, elapsed) {
-            ViewAction::None =>
-                context.renderer.present(),
+
+        match current_view.update(&mut context, elapsed) {
+            ViewAction::Render(view) => {
+                current_view = view;
+                current_view.render(&mut context);
+                context.renderer.present();
+            },
 
             ViewAction::Quit =>
                 break,
-
-            ViewAction::ChangeView(new_view) => {
-                current_view = new_view;
-            }
         }
     }
 }
