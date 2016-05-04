@@ -10,8 +10,13 @@ use sdl2::rect::Rect as SdlRect;
 use sdl2::render::{Renderer, Texture};
 use sdl2_image::LoadTexture;
 
+pub enum RenderFx {
+    FlipX,
+    None,
+}
+
 pub trait Renderable {
-    fn render(&self, renderer: &mut Renderer, dest: &SdlRect);
+    fn render(&self, renderer: &mut Renderer, dest: &SdlRect, fx: RenderFx);
 }
 
 #[derive(Clone)]
@@ -62,8 +67,26 @@ impl Sprite {
 }
 
 impl Renderable for Sprite {
-    fn render(&self, renderer: &mut Renderer, dest: &SdlRect) {
-        renderer.copy(&mut self.tex.borrow_mut(), Some(self.src.to_sdl()), Some(*dest))
+    fn render(&self, renderer: &mut Renderer, dest: &SdlRect, fx: RenderFx) {
+        match fx {
+            RenderFx::None => {
+                renderer.copy(
+                    &mut self.tex.borrow_mut(),
+                    Some(self.src.to_sdl()),
+                    Some(*dest));
+            },
+
+            RenderFx::FlipX => {
+                renderer.copy_ex(
+                    &mut self.tex.borrow_mut(),
+                    Some(self.src.to_sdl()),
+                    Some(*dest),
+                    0.0,
+                    None,
+                    true,
+                    false).unwrap();
+            }
+        }
     }
 }
 
@@ -249,20 +272,20 @@ impl AnimatedSprite {
 }
 
 impl Renderable for AnimatedSprite {
-    fn render(&self, renderer: &mut Renderer, dest: &SdlRect) {
+    fn render(&self, renderer: &mut Renderer, dest: &SdlRect, fx: RenderFx) {
         let current_frame = (self.current_time  / self.frame_delay) as usize % self.frames();
-
         let sprite = &self.sprites[current_frame];
-        sprite.render(renderer, dest);
+
+        sprite.render(renderer, dest, fx);
     }
 }
 
 pub trait CopySprite<T> {
-    fn copy_sprite(&mut self, renderable: &T, dest: &SdlRect);
+    fn copy_sprite(&mut self, renderable: &T, dest: &SdlRect, fx: RenderFx);
 }
 
 impl<'window, T: Renderable> CopySprite<T> for Renderer<'window> {
-    fn copy_sprite(&mut self, renderable: &T, dest: &SdlRect) {
-        renderable.render(self, dest);
+    fn copy_sprite(&mut self, renderable: &T, dest: &SdlRect, fx: RenderFx) {
+        renderable.render(self, dest, fx);
     }
 }

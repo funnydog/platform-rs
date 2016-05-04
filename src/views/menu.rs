@@ -2,7 +2,7 @@
 
 use phi::{Phi, View, ViewAction};
 use phi::data::{Rectangle};
-use phi::gfx::{Sprite, CopySprite};
+use phi::gfx::{CopySprite, RenderFx, Sprite};
 use sdl2::pixels::Color;
 
 // constants
@@ -121,12 +121,16 @@ impl View for MenuView {
             };
 
             let (w, h) = sprite.size();
-            phi.renderer.copy_sprite(sprite, &Rectangle {
-                w: w,
-                h: h,
-                x: (win_w - w) / 2.0,
-                y: (win_h - box_h + LABEL_H - h) / 2.0 + LABEL_H * i as f64,
-            }.to_sdl());
+            phi.renderer.copy_sprite(
+                sprite,
+                &Rectangle {
+                    w: w,
+                    h: h,
+                    x: (win_w - w) / 2.0,
+                    y: (win_h - box_h + LABEL_H - h) / 2.0 + LABEL_H * i as f64,
+                }.to_sdl(),
+                RenderFx::None,
+            );
         }
     }
 }

@@ -4,7 +4,7 @@ use glm::*;
 
 use phi::{Phi, View, ViewAction};
 use phi::data::Rectangle;
-use phi::gfx::{AnimatedSprite, CopySprite, Sprite};
+use phi::gfx::{AnimatedSprite, CopySprite, RenderFx, Sprite};
 
 use sdl2::pixels::Color;
 
@@ -226,7 +226,7 @@ impl Player {
             phi.renderer.fill_rect(rect).unwrap();
         }
 
-        phi.renderer.copy_sprite(cursprite, &rect);
+        phi.renderer.copy_sprite(cursprite, &rect, RenderFx::None);
     }
 }
 
@@ -272,12 +272,16 @@ impl View for GameView {
         // Draw the background layers
         for layer in &self.layers {
             let (w, h) = layer.size();
-            phi.renderer.copy_sprite(layer, &Rectangle {
-                x: 0.0,
-                y: 0.0,
-                w: w,
-                h: h,
-            }.to_sdl());
+            phi.renderer.copy_sprite(
+                layer,
+                &Rectangle {
+                    x: 0.0,
+                    y: 0.0,
+                    w: w,
+                    h: h,
+                }.to_sdl(),
+                RenderFx::None,
+            );
         }
 
         // Draw the player
