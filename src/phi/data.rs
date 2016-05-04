@@ -1,5 +1,6 @@
 // src/phi/data.rs
 
+use glm::Vector2;
 use sdl2::rect::Rect as SdlRect;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -62,18 +63,19 @@ impl Rectangle {
         }
     }
 
-    pub fn center_at(self, center: (f64, f64)) -> Rectangle {
+    pub fn center_at(self, center: Vector2<f64>) -> Rectangle {
         Rectangle {
-            x: center.0 - self.w / 2.0,
-            y: center.1 - self.h / 2.0,
+            x: center.x - self.w / 2.0,
+            y: center.y - self.h / 2.0,
             ..self
         }
     }
 
-    pub fn center(self) -> (f64, f64) {
-        let x = self.x + self.w / 2.0;
-        let y = self.y + self.h / 2.0;
-        (x, y)
+    pub fn center(self) -> Vector2<f64> {
+        Vector2 {
+            x: self.x + self.w / 2.0,
+            y: self.y + self.h / 2.0,
+        }
     }
 }
 
