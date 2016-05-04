@@ -289,3 +289,55 @@ impl<'window, T: Renderable> CopySprite<T> for Renderer<'window> {
         renderable.render(self, dest, fx);
     }
 }
+
+#[derive(Clone, Copy, PartialEq)]
+pub enum TileCollision {
+    /// a tile which doesn't hinder player motion at all
+    Passable = 0,
+
+    /// a tile which doesn't allow the player to move through
+    /// it at all. It's completely solid
+    Impassable = 1,
+
+    /// A tile which behaves like a passable tile except when the
+    /// player is above it. A player can jump up through a platform
+    /// as weel as move past it to the left and right, but cannot
+    /// fall down through the top of it.
+    Platform = 2,
+}
+
+pub struct Tile {
+    pub sprite: Option<Sprite>,
+    pub collision: TileCollision,
+}
+
+impl Tile {
+    pub fn new(sprite: Option<Sprite>, collision: TileCollision) -> Tile {
+        Tile {
+            sprite: sprite,
+            collision: collision,
+        }
+    }
+
+    pub fn load(renderer: &Renderer, path: &str, collision: TileCollision) -> Tile {
+        let sprite = match Sprite::load(renderer, path) {
+            Some(sprite) => { Some(sprite) },
+            None => {
+                panic!("Sprite {} not found!", path);
+            }
+        };
+
+        Tile {
+            sprite: sprite,
+            collision: collision,
+        }
+    }
+}
+
+impl Renderable for Tile {
+    fn render(&self, renderer: &mut Renderer, dest: &SdlRect, fx: RenderFx) {
+        if let Some(ref sprite) = self.sprite {
+            sprite.render(renderer, dest, fx);
+        }
+    }
+}
