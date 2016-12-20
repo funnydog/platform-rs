@@ -4,31 +4,186 @@ use glm::*;
 
 use phi::{Phi, View, ViewAction};
 use phi::data::Rectangle;
-use phi::gfx::{AnimatedSprite, CopySprite, RenderFx, Sprite};
+use phi::gfx::*;
 
+use sdl2::render::Renderer;
 use sdl2::pixels::Color;
+
+use std::io;
+use std::io::prelude::*;
+use std::io::BufReader;
+use std::fs::File;
 
 // constants
 const DEBUG: bool = true;
 
-const GRAVITY: f64 = 24.0;
+const TILE_WIDTH: f64 = 40.0;
+const TILE_HEIGHT: f64 = 32.0;
 
-const PLAYER_SPEED: f64 = 120.0;
-const PLAYER_HEIGHT: f64 = 48.0;
-const PLAYER_WIDTH: f64 = 32.0;
+struct GameLevel {
+    pub layers: Vec<Sprite>,
+    pub tiles: Vec<Vec<Tile>>,
+    pub start: Vector2<f64>,
+    pub exit: Vector2<f64>,
+    pub width: usize,
+    pub height: usize,
+}
+
+impl GameLevel {
+    pub fn load(phi: &mut Phi, path: &str) -> GameLevel {
+        let f = File::open(path).unwrap();
+        let file = BufReader::new(&f);
+        let mut lines: Vec<String> = Vec::new();
+        let mut width: usize = 0;
+
+        for line in file.lines() {
+            let buffer = line.unwrap().to_string();
+            width = buffer.len();
+            lines.push(buffer);
+        }
+
+        let height: usize = lines.len();
+        let mut yvec: Vec<Vec<Tile>> = Vec::with_capacity(height);
+        let mut exit: Vector2<f64> = Vector2::new(0.0, 0.0);
+        let mut start: Vector2<f64> = Vector2::new(0.0, 0.0);
+        for yth in 0..height {
+            let mut xvec: Vec<Tile> = Vec::with_capacity(width);
+            for (xth, tile_type) in lines[yth].chars().enumerate() {
+                xvec.push(match tile_type {
+                    '.' => { Tile::new(None, TileCollision::Passable) },
+                    'X' => {
+                        exit.x = xth as f64 * TILE_WIDTH + TILE_WIDTH / 2.0;
+                        exit.y = yth as f64 * TILE_HEIGHT + TILE_HEIGHT / 2.0;
+                        Tile::load(&phi.renderer, "assets/tiles/exit.png", TileCollision::Passable)
+                    },
+                    'G' => {
+                        // TODO: add the gem to the gem list
+                        Tile::new(None, TileCollision::Passable)
+                    },
+                    '-' => {
+                        // floating tile
+                        Tile::load(&phi.renderer, "assets/tiles/platform.png", TileCollision::Platform)
+                    },
+                    'A' => {
+                        // TODO: add the enemy to the enemy list
+                        Tile::new(None, TileCollision::Passable)
+                    },
+                    'B' => {
+                        // TODO: add the enemy to the enemy list
+                        Tile::new(None, TileCollision::Passable)
+                    },
+                    'C' => {
+                        // TODO: add the enemy to the enemy list
+                        Tile::new(None, TileCollision::Passable)
+                    },
+                    'D' => {
+                        Tile::new(None, TileCollision::Passable)
+                    },
+                    '~' => {
+                        GameLevel::load_random_tile(phi, "assets/tiles/blockb", 2, TileCollision::Platform)
+                    },
+                    ':' => {
+                        GameLevel::load_random_tile(phi, "assets/tiles/blockb", 2, TileCollision::Passable)
+                    },
+                    '1' => {
+                        start.x = xth as f64 * TILE_WIDTH + TILE_WIDTH / 2.0;
+                        start.y = yth as f64 * TILE_HEIGHT + TILE_HEIGHT / 2.0;
+                        Tile::new(None, TileCollision::Passable)
+                    },
+                    '#' => {
+                        GameLevel::load_random_tile(phi, "assets/tiles/blocka", 7, TileCollision::Impassable)
+                    },
+                    _ => { panic!("Unsupported tile type '{}'", tile_type); }
+                });
+            }
+            yvec.push(xvec);
+        }
+
+        GameLevel {
+            layers: vec![
+                Sprite::load(&mut phi.renderer, "assets/background0.png").unwrap(),
+                Sprite::load(&mut phi.renderer, "assets/background1.png").unwrap(),
+                Sprite::load(&mut phi.renderer, "assets/background2.png").unwrap(),
+            ],
+            tiles: yvec,
+            start: start,
+            exit: exit,
+            width: width,
+            height: height,
+        }
+    }
+
+    fn load_random_tile(phi: &mut Phi, base: &str, count: usize, collision: TileCollision) -> Tile {
+        let x = ::rand::random::<usize>() % count;
+        let name = format!("{}{}.png", base, x);
+
+        Tile::load(&phi.renderer, &name, collision)
+    }
+
+    fn get_collision(&self, x: i32, y: i32) -> TileCollision {
+        if y < 0 || y >= self.height as i32 {
+            TileCollision::Passable
+        } else if x < 0 || x >= self.width as i32 {
+            TileCollision::Impassable
+        } else {
+            self.tiles[y as usize][x as usize].collision
+        }
+    }
+
+    pub fn render(&self, phi: &mut Phi) {
+        // Draw the background layers
+        for layer in &self.layers {
+            let (w, h) = layer.size();
+            phi.renderer.copy_sprite(
+                layer,
+                &Rectangle {
+                    x: 0.0,
+                    y: 0.0,
+                    w: w,
+                    h: h,
+                }.to_sdl(),
+                RenderFx::None,
+            );
+        }
+
+        // Draw the tiles
+        let mut rect = Rectangle::with_size(TILE_WIDTH, TILE_HEIGHT);
+        for y in 0..self.tiles.len() {
+            for x in 0..self.tiles[y].len() {
+                let srect = rect.to_sdl();
+                phi.renderer.copy_sprite(&self.tiles[y][x], &srect, RenderFx::None);
+                rect.x += TILE_WIDTH;
+            }
+            rect.x = 0.0;
+            rect.y += TILE_HEIGHT;
+        }
+    }
+}
+
+const PLAYER_WIDTH: f64 = 64.0;
+const PLAYER_HEIGHT: f64 = 64.0;
 const PLAYER_FPS: f64 = 15.0;
-const PLAYER_JUMP_IMPULSE: f64 = -10.0;
+
+// horizontal movements
+const PLAYER_MOVE_ACCEL: f32 = 13000.0_f32;
+const PLAYER_MAX_SPEED: f32 = 1750.0_f32;
+const PLAYER_GROUND_DRAG: f32 = 0.48_f32;
+const PLAYER_AIR_DRAG: f32 = 0.58_f32;
+
+// vertical movements
+const PLAYER_MAX_JUMP_TIME: f32 = 0.35_f32;
+const PLAYER_JUMP_LAUNCH_VEL: f32 = -3500.0_f32;
+const PLAYER_GRAVITY_ACCEL: f32 = 3400.0_f32;
+const PLAYER_MAX_FALL_SPEED: f32 = 550.0_f32;
+const PLAYER_JUMP_POWER: f32 = 0.14_f32;
 
 #[derive(Clone, Copy)]
 enum PlayerFrame {
-    SitLeft = 0,
-    SitRight = 1,
-    StandLeft = 2,
-    StandRight = 3,
-    WalkLeft = 4,
-    WalkRight = 5,
-    JumpLeft = 6,
-    JumpRight = 7,
+    Idle = 0,
+    Run = 1,
+    Jump = 2,
+    Celebrate = 3,
+    Die = 4,
 }
 
 enum PlayerDirection {
@@ -37,11 +192,21 @@ enum PlayerDirection {
 }
 
 struct Player {
-    yvel: f64,
     pos: Vector2<f64>,
+    vel: Vector2<f32>,
+
+    // jumping state
+    on_ground: bool,
+    is_jumping: bool,
+    jump_time: f32,
+    previous_bottom: f32,
+
     sprites: Vec<AnimatedSprite>,
     current: PlayerFrame,
     direction: PlayerDirection,
+
+    // level
+    level: GameLevel,
 }
 
 impl Player {
@@ -49,81 +214,70 @@ impl Player {
         use ::phi::gfx::ASDescr::*;
         let sprites = vec![
             AnimatedSprite::load(phi, SingleFrame {
-                image_path: "assets/player_still_left.png",
-                frame_x: PLAYER_WIDTH,
-                frame_y: 0.0,
-                frame_w: PLAYER_WIDTH,
-                frame_h: PLAYER_HEIGHT,
-            }, 1.0),
-
-            AnimatedSprite::load(phi, SingleFrame {
-                image_path: "assets/player_still_right.png",
-                frame_x: PLAYER_WIDTH,
-                frame_y: 0.0,
-                frame_w: PLAYER_WIDTH,
-                frame_h: PLAYER_HEIGHT,
-            }, 1.0),
-
-            AnimatedSprite::load(phi, SingleFrame {
-                image_path: "assets/player_still_left.png",
+                image_path: "assets/sprites/player/idle.png",
                 frame_x: 0.0,
-                frame_y: PLAYER_HEIGHT,
-                frame_w: PLAYER_WIDTH,
-                frame_h: PLAYER_HEIGHT,
-            }, 1.0),
-
-            AnimatedSprite::load(phi, SingleFrame {
-                image_path: "assets/player_still_right.png",
-                frame_x: 0.0,
-                frame_y: PLAYER_HEIGHT,
+                frame_y: 0.0,
                 frame_w: PLAYER_WIDTH,
                 frame_h: PLAYER_HEIGHT,
             }, 1.0),
 
             AnimatedSprite::load(phi, LoadFromStart {
-                image_path: "assets/player_walk_left.png",
-                total_frames: 14,
-                frames_high: 4,
-                frames_wide: 4,
+                image_path: "assets/sprites/player/run.png",
+                total_frames: 10,
+                frames_high: 1,
+                frames_wide: 10,
                 frame_w: PLAYER_WIDTH,
                 frame_h: PLAYER_HEIGHT,
             }, PLAYER_FPS),
 
             AnimatedSprite::load(phi, LoadFromStart {
-                image_path: "assets/player_walk_right.png",
-                total_frames: 14,
-                frames_high: 4,
-                frames_wide: 4,
+                image_path: "assets/sprites/player/jump.png",
+                total_frames: 11,
+                frames_high: 1,
+                frames_wide: 11,
                 frame_w: PLAYER_WIDTH,
                 frame_h: PLAYER_HEIGHT,
             }, PLAYER_FPS),
 
-            AnimatedSprite::load(phi, SingleFrame {
-                image_path: "assets/player_still_left.png",
-                frame_x: 0.0,
-                frame_y: 0.0,
+            AnimatedSprite::load(phi, LoadFromStart {
+                image_path: "assets/sprites/player/celebrate.png",
+                total_frames: 11,
+                frames_high: 1,
+                frames_wide: 11,
                 frame_w: PLAYER_WIDTH,
                 frame_h: PLAYER_HEIGHT,
-            }, 1.0),
+            }, PLAYER_FPS),
 
-            AnimatedSprite::load(phi, SingleFrame {
-                image_path: "assets/player_still_right.png",
-                frame_x: 0.0,
-                frame_y: 0.0,
+            AnimatedSprite::load(phi, LoadFromStart {
+                image_path: "assets/sprites/player/die.png",
+                total_frames: 11,
+                frames_high: 1,
+                frames_wide: 11,
                 frame_w: PLAYER_WIDTH,
                 frame_h: PLAYER_HEIGHT,
-            }, 1.0),
+            }, PLAYER_FPS),
         ];
 
         Player {
-            yvel: 0.0,
             pos: Vector2 {
                 x: 64.0,
                 y: 64.0,
             },
+            vel: Vector2 {
+                x: 0.0,
+                y: 0.0,
+            },
+
+            on_ground: true,
+            is_jumping: false,
+            jump_time: 0.0_f32,
+            previous_bottom: 0.0_f32,
+
             sprites: sprites,
-            current: PlayerFrame::StandRight,
+            current: PlayerFrame::Idle,
             direction: PlayerDirection::Right,
+
+            level: GameLevel::load(phi, "assets/level-0.txt"),
         }
     }
 
@@ -140,79 +294,134 @@ impl Player {
         use self::PlayerFrame::*;
         use self::PlayerDirection::*;
 
-        let moved = PLAYER_SPEED * elapsed;
+        // apply physics
+        let dx = if phi.events.key_left {
+            -1.0f32
+        } else if phi.events.key_right {
+            1.0f32
+        } else {
+            0.0f32
+        };
 
-        let mut dx: f64 = 0.0;
-        if phi.events.key_left {
-            dx -= moved;
+        // the base velocity is a combination of horizontal movement control
+        // and acceleration downwards due to gravity.
+        self.vel.x += dx * PLAYER_MOVE_ACCEL * elapsed as f32;
+        self.vel.y = clamp(
+            self.vel.y + PLAYER_GRAVITY_ACCEL * elapsed as f32,
+            -PLAYER_MAX_FALL_SPEED,
+            PLAYER_MAX_FALL_SPEED
+        );
+
+        // apply the jump logic
+        if phi.events.key_up {
+            if (!self.is_jumping && self.on_ground) || self.jump_time > 0.0f32 {
+                self.jump_time += elapsed as f32;
+            }
+
+            if 0.0_f32 < self.jump_time && self.jump_time <= PLAYER_MAX_JUMP_TIME {
+                self.vel.y = PLAYER_JUMP_LAUNCH_VEL *
+                    (1.0f32 - pow(self.jump_time / PLAYER_MAX_JUMP_TIME,
+                                  PLAYER_JUMP_POWER));
+            } else {
+                self.jump_time = 0.0_f32;
+            }
+        } else {
+            self.jump_time = 0.0_f32;
         }
-        if phi.events.key_right {
-            dx += moved;
+
+        self.vel.x *= if self.on_ground { PLAYER_GROUND_DRAG } else { PLAYER_AIR_DRAG };
+        self.vel.x = clamp(self.vel.x, -PLAYER_MAX_SPEED, PLAYER_MAX_SPEED);
+
+        let old_position = self.pos;
+        self.pos.x = self.pos.x + self.vel.x as f64 * elapsed;
+        self.pos.y = self.pos.y + self.vel.y as f64 * elapsed;
+
+        // handle collisions
+        let mut bound_rect = Rectangle {
+            x: self.pos.x,
+            y: self.pos.y,
+            w: PLAYER_WIDTH,
+            h: PLAYER_HEIGHT,
+        };
+
+        // the values can go out of bounds but we are saved by the fact that
+        // self.level.get_collision() handles out of bounds values
+        let left_tile = floor(bound_rect.x / TILE_WIDTH) as i32;
+        let right_tile = ceil((bound_rect.x + bound_rect.w) / TILE_WIDTH) as i32;
+        let top_tile = floor(bound_rect.y / TILE_HEIGHT) as i32;
+        let bottom_tile = ceil((bound_rect.y + bound_rect.h) / TILE_HEIGHT) as i32;
+
+        self.on_ground = false;
+        let mut tile_bounds = Rectangle {
+            x: left_tile as f64 * TILE_WIDTH,
+            y: top_tile as f64 * TILE_HEIGHT,
+            w: TILE_WIDTH, h: TILE_HEIGHT
+        };
+        for yth in top_tile..bottom_tile {
+            for xth in left_tile..right_tile {
+                let collision = self.level.get_collision(xth, yth);
+
+                if collision != TileCollision::Passable {
+                    if let Some(depth) = bound_rect.interdepth(tile_bounds) {
+                        if depth.y.abs() < depth.x.abs() || collision == TileCollision::Platform {
+                            if self.previous_bottom <= tile_bounds.y as f32 {
+                                self.on_ground = true;
+                            }
+
+                            if collision == TileCollision::Impassable || self.on_ground {
+                                self.pos = Vector2 {
+                                    x: self.pos.x,
+                                    y: self.pos.y + depth.y,
+                                };
+                                bound_rect.x = self.pos.x;
+                                bound_rect.y = self.pos.y;
+                            }
+                        } else if collision == TileCollision::Impassable {
+                            self.pos = Vector2 {
+                                x: self.pos.x + depth.x,
+                                y: self.pos.y,
+                            };
+                            bound_rect.x = self.pos.x;
+                            bound_rect.y = self.pos.y;
+                        }
+                    }
+                }
+                tile_bounds.x += TILE_WIDTH;
+            }
+            tile_bounds.x = left_tile as f64 * TILE_WIDTH;
+            tile_bounds.y += TILE_HEIGHT;
+        }
+        self.previous_bottom = (self.pos.y + PLAYER_HEIGHT) as f32;
+
+        // reset the velocity if a collision stopped the player
+        if old_position.x == self.pos.x {
+            self.vel.x = 0f32;
+        }
+
+        if old_position.y == self.pos.y {
+            self.vel.y = 0f32;
         }
 
         // determine the facing direction of the player
+        if dx == 0.0 && self.on_ground {
+            self.current = Idle;
+        } else if !self.on_ground {
+            self.current = Jump;
+        } else {
+            self.current = Run;
+        }
+
         if dx < 0.0 {
             self.direction = Left;
         } else if dx > 0.0 {
             self.direction = Right;
         }
-
-        self.pos.x += dx;
-        self.pos.y += self.yvel;
-        let movable_region = Rectangle {
-            x: 0.0,
-            y: 0.0,
-            w: phi.output_size().0,
-            h: phi.output_size().1 * 0.7,
-        };
-
-        if let Some(rect) = self.bounding_rect().move_inside(movable_region) {
-            self.pos.x = rect.x;
-            self.pos.y = rect.y;
-
-            let touchground: bool = rect.y + rect.h >= movable_region.h;
-            if !touchground {
-                self.yvel += GRAVITY * elapsed;
-            } else if phi.events.key_up {
-                self.yvel = PLAYER_JUMP_IMPULSE;
-            } else {
-                self.yvel = 0.0;
-            }
-
-            match self.direction {
-                Left => {
-                    if dx == 0.0 && touchground {
-                        if phi.events.key_down {
-                            self.current = SitLeft;
-                        } else {
-                            self.current = StandLeft;
-                        }
-                    } else if !touchground {
-                        self.current = JumpLeft;
-                    } else {
-                        self.current = WalkLeft;
-                    }
-                },
-                Right => {
-                    if dx == 0.0 && touchground {
-                        if phi.events.key_down {
-                            self.current = SitRight;
-                        } else {
-                            self.current = StandRight;
-                        }
-                    } else if !touchground {
-                        self.current = JumpRight;
-                    } else {
-                        self.current = WalkRight;
-                    }
-                },
-            };
-        }
-
         self.sprites[self.current as usize].add_time(elapsed);
     }
 
     pub fn render(&self, phi: &mut Phi) {
+        self.level.render(phi);
+
         let cursprite = &self.sprites[self.current as usize];
         let rect = Rectangle {
             x: self.pos.x,
@@ -226,40 +435,47 @@ impl Player {
             phi.renderer.fill_rect(rect).unwrap();
         }
 
-        phi.renderer.copy_sprite(cursprite, &rect, RenderFx::None);
+        let fx = match self.direction {
+            PlayerDirection::Left => RenderFx::None,
+            PlayerDirection::Right => RenderFx::FlipX,
+        };
+        phi.renderer.copy_sprite(cursprite, &rect, fx);
     }
 }
 
 pub struct GameView {
     player: Player,
-    layers: Vec<Sprite>,
 }
 
 impl GameView {
     pub fn new(phi: &mut Phi) -> GameView {
         GameView {
             player: Player::new(phi),
-            layers: vec![
-                Sprite::load(&mut phi.renderer, "assets/background0.png").unwrap(),
-                Sprite::load(&mut phi.renderer, "assets/background1.png").unwrap(),
-                Sprite::load(&mut phi.renderer, "assets/background2.png").unwrap(),
-            ],
         }
     }
 }
 
 impl View for GameView {
     fn update(mut self: Box<Self>, phi: &mut Phi, elapsed: f64) -> ViewAction {
+        // check if the player wants to exit
         if phi.events.now.quit {
             return ViewAction::Quit
         }
 
+        // check if the player pressed escape
         if phi.events.now.key_escape == Some(true) {
             return ViewAction::Render(Box::new(
                 ::views::menu::MenuView::new(phi)))
         }
 
+        // update the player
         self.player.update(phi, elapsed);
+
+        // TODO: update the gems
+
+        // TODO: check if the player fell off the bottom of the level
+
+        // TODO: update the enemies
 
         ViewAction::Render(self)
     }
@@ -269,22 +485,9 @@ impl View for GameView {
         phi.renderer.set_draw_color(Color::RGB(0,0,50));
         phi.renderer.clear();
 
-        // Draw the background layers
-        for layer in &self.layers {
-            let (w, h) = layer.size();
-            phi.renderer.copy_sprite(
-                layer,
-                &Rectangle {
-                    x: 0.0,
-                    y: 0.0,
-                    w: w,
-                    h: h,
-                }.to_sdl(),
-                RenderFx::None,
-            );
-        }
-
         // Draw the player
         self.player.render(phi);
+
+        // TODO: Draw the enemies
     }
 }
