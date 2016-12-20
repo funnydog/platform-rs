@@ -6,7 +6,9 @@ authors = ["funnydog <funnydog@users.noreply.github.com>"]
 [dependencies]
 glm = "0.2.0"
 rand = "0.3"
-sdl2 = "0.15"
-sdl2_image = "1.1.0"
-sdl2_ttf = "0.15.0"
 time = ">=0.1"
+
+[dependencies.sdl2]
+version = "0.27"
+default-features = false
+features = ["ttf", "image"]

@@ -2,7 +2,7 @@
 use self::gfx::Sprite;
 use sdl2::render::Renderer;
 use sdl2::pixels::Color;
-use sdl2_ttf::Sdl2TtfContext;
+use sdl2::ttf::Sdl2TtfContext;
 
 use std::collections::HashMap;
 use std::path::Path;
@@ -36,7 +36,7 @@ pub struct Phi<'window> {
     pub renderer: Renderer<'window>,
     pub font_context: Sdl2TtfContext,
 
-    cached_fonts: HashMap<(&'static str, u16), ::sdl2_ttf::Font>,
+//    cached_fonts: HashMap<(&'static str, u16), ::sdl2::ttf::Font<'window>>,
 }
 
 impl<'window> Phi<'window> {
@@ -44,8 +44,8 @@ impl<'window> Phi<'window> {
         Phi {
             events: events,
             renderer: renderer,
-            font_context: ::sdl2_ttf::init().unwrap(),
-            cached_fonts: HashMap::new(),
+            font_context: ::sdl2::ttf::init().unwrap(),
+//            cached_fonts: HashMap::new(),
         }
     }
 
@@ -55,21 +55,24 @@ impl<'window> Phi<'window> {
     }
 
     pub fn ttf_str_sprite(&mut self, text: &str, font_path: &'static str, size: u16, color: Color) -> Option<Sprite> {
-        if let Some(font) = self.cached_fonts.get(&(font_path, size)) {
-            return font.render(text).blended(color).ok()
-                .and_then(|surface| self.renderer.create_texture_from_surface(&surface).ok())
-                .map(Sprite::new)
-        }
+        // if let Some(font) = self.cached_fonts.get(&(font_path, size)) {
+        //     return font.render(text).blended(color).ok()
+        //         .and_then(|surface| self.renderer.create_texture_from_surface(&surface).ok())
+        //         .map(Sprite::new)
+        // }
 
         self.font_context.load_font(Path::new(font_path), size).ok()
-            .and_then(|font| {
+            .and_then(|font| font
+                      .render(text).blended(color).ok()
+                      .and_then(|surface| self.renderer.create_texture_from_surface(&surface).ok())
+                      .map(Sprite::new))
                 // if this worked we cache the font acquired
-                self.cached_fonts.insert((font_path, size), font);
+                // self.cached_fonts.insert((font_path, size), font);
 
                 // then we call the method recursively since
                 // we know that now the font is cached
-                self.ttf_str_sprite(text, font_path, size, color)
-            })
+                // self.ttf_str_sprite(text, font_path, size, color)
+            // })
     }
 }
 
@@ -129,7 +132,7 @@ pub fn spawn<F>(title: &str, init: F)
     let sdl_context = ::sdl2::init().unwrap();
     let video = sdl_context.video().unwrap();
 
-    let _image_context = ::sdl2_image::init(::sdl2_image::INIT_PNG).unwrap();
+    let _image_context = ::sdl2::image::init(::sdl2::image::INIT_PNG).unwrap();
 
     // create the window
     let window = video.window(title, 800, 600)

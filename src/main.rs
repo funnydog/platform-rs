@@ -2,8 +2,8 @@
 
 extern crate glm;
 extern crate sdl2;
-extern crate sdl2_image;
-extern crate sdl2_ttf;
+// extern crate sdl2_image;
+// extern crate sdl2_ttf;
 extern crate time;
 extern crate rand;
 

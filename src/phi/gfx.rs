@@ -8,7 +8,7 @@ use std::rc::Rc;
 
 use sdl2::rect::Rect as SdlRect;
 use sdl2::render::{Renderer, Texture};
-use sdl2_image::LoadTexture;
+use sdl2::image::LoadTexture;
 
 pub enum RenderFx {
     FlipX,
