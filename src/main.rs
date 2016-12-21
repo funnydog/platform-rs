@@ -1,11 +1,13 @@
 // src/main.rs
 
 extern crate glm;
-extern crate sdl2;
-// extern crate sdl2_image;
-// extern crate sdl2_ttf;
-extern crate time;
+
+#[macro_use]
+extern crate lazy_static;
+
 extern crate rand;
+extern crate sdl2;
+extern crate time;
 
 mod phi;
 mod views;

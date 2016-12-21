@@ -13,6 +13,10 @@ mod events;
 pub mod data;
 pub mod gfx;
 
+lazy_static! {
+    static ref font_context: ::sdl2::ttf::Sdl2TtfContext = ::sdl2::ttf::init().unwrap();
+}
+
 struct_events! {
     keyboard: {
         key_escape: Escape,
@@ -34,9 +38,7 @@ struct_events! {
 pub struct Phi<'window> {
     pub events: Events,
     pub renderer: Renderer<'window>,
-    pub font_context: Sdl2TtfContext,
 
-    cached_paths: HashMap<&'static str, &'window Path>,
     cached_fonts: HashMap<(&'static str, u16), ::sdl2::ttf::Font<'window>>,
 }
 
@@ -45,8 +47,7 @@ impl<'window> Phi<'window> {
         Phi {
             events: events,
             renderer: renderer,
-            font_context: ::sdl2::ttf::init().unwrap(),
-            cached_paths: HashMap::new(),
+
             cached_fonts: HashMap::new(),
         }
     }
@@ -58,12 +59,9 @@ impl<'window> Phi<'window> {
 
     pub fn ttf_str_sprite(&mut self, text: &str, font_path: &'static str, size: u16, color: Color) -> Option<Sprite> {
         let couple = (font_path, size);
-        let font = self.cached_fonts.entry(couple).or_insert({
-            let path = *self.cached_paths.entry(font_path).or_insert(Path::new(font_path));
-            self.font_context.load_font(path, size).ok().unwrap()
-        });
-
-        font.render(text).blended(color).ok()
+        self.cached_fonts.entry(couple).or_insert({
+            font_context.load_font(Path::new(font_path), size).ok().unwrap()
+        }).render(text).blended(color).ok()
             .and_then(|surface| self.renderer.create_texture_from_surface(&surface).ok())
             .map(Sprite::new)
     }
