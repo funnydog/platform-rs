@@ -36,7 +36,8 @@ pub struct Phi<'window> {
     pub renderer: Renderer<'window>,
     pub font_context: Sdl2TtfContext,
 
-//    cached_fonts: HashMap<(&'static str, u16), ::sdl2::ttf::Font<'window>>,
+    cached_paths: HashMap<&'static str, &'window Path>,
+    cached_fonts: HashMap<(&'static str, u16), ::sdl2::ttf::Font<'window>>,
 }
 
 impl<'window> Phi<'window> {
@@ -45,7 +46,8 @@ impl<'window> Phi<'window> {
             events: events,
             renderer: renderer,
             font_context: ::sdl2::ttf::init().unwrap(),
-//            cached_fonts: HashMap::new(),
+            cached_paths: HashMap::new(),
+            cached_fonts: HashMap::new(),
         }
     }
 
@@ -55,24 +57,15 @@ impl<'window> Phi<'window> {
     }
 
     pub fn ttf_str_sprite(&mut self, text: &str, font_path: &'static str, size: u16, color: Color) -> Option<Sprite> {
-        // if let Some(font) = self.cached_fonts.get(&(font_path, size)) {
-        //     return font.render(text).blended(color).ok()
-        //         .and_then(|surface| self.renderer.create_texture_from_surface(&surface).ok())
-        //         .map(Sprite::new)
-        // }
+        let couple = (font_path, size);
+        let font = self.cached_fonts.entry(couple).or_insert({
+            let path = *self.cached_paths.entry(font_path).or_insert(Path::new(font_path));
+            self.font_context.load_font(path, size).ok().unwrap()
+        });
 
-        self.font_context.load_font(Path::new(font_path), size).ok()
-            .and_then(|font| font
-                      .render(text).blended(color).ok()
-                      .and_then(|surface| self.renderer.create_texture_from_surface(&surface).ok())
-                      .map(Sprite::new))
-                // if this worked we cache the font acquired
-                // self.cached_fonts.insert((font_path, size), font);
-
-                // then we call the method recursively since
-                // we know that now the font is cached
-                // self.ttf_str_sprite(text, font_path, size, color)
-            // })
+        font.render(text).blended(color).ok()
+            .and_then(|surface| self.renderer.create_texture_from_surface(&surface).ok())
+            .map(Sprite::new)
     }
 }
 
