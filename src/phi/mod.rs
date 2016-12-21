@@ -2,6 +2,8 @@
 use self::gfx::Sprite;
 use sdl2::render::Renderer;
 use sdl2::pixels::Color;
+
+use sdl2::ttf::Font;
 use sdl2::ttf::Sdl2TtfContext;
 
 use std::collections::HashMap;
@@ -14,7 +16,7 @@ pub mod data;
 pub mod gfx;
 
 lazy_static! {
-    static ref font_context: ::sdl2::ttf::Sdl2TtfContext = ::sdl2::ttf::init().unwrap();
+    static ref font_context: Sdl2TtfContext = ::sdl2::ttf::init().unwrap();
 }
 
 struct_events! {
@@ -39,7 +41,7 @@ pub struct Phi<'window> {
     pub events: Events,
     pub renderer: Renderer<'window>,
 
-    cached_fonts: HashMap<(&'static str, u16), ::sdl2::ttf::Font<'window>>,
+    cached_fonts: HashMap<(&'static str, u16), Font<'window>>,
 }
 
 impl<'window> Phi<'window> {
@@ -58,10 +60,9 @@ impl<'window> Phi<'window> {
     }
 
     pub fn ttf_str_sprite(&mut self, text: &str, font_path: &'static str, size: u16, color: Color) -> Option<Sprite> {
-        let couple = (font_path, size);
-        self.cached_fonts.entry(couple).or_insert({
+        self.cached_fonts.entry((font_path, size)).or_insert(
             font_context.load_font(Path::new(font_path), size).ok().unwrap()
-        }).render(text).blended(color).ok()
+        ).render(text).blended(color).ok()
             .and_then(|surface| self.renderer.create_texture_from_surface(&surface).ok())
             .map(Sprite::new)
     }
