@@ -60,11 +60,19 @@ impl<'window> Phi<'window> {
     }
 
     pub fn ttf_str_sprite(&mut self, text: &str, font_path: &'static str, size: u16, color: Color) -> Option<Sprite> {
-        self.cached_fonts.entry((font_path, size)).or_insert(
-            font_context.load_font(Path::new(font_path), size).ok().unwrap()
-        ).render(text).blended(color).ok()
-            .and_then(|surface| self.renderer.create_texture_from_surface(&surface).ok())
-            .map(Sprite::new)
+        let couple = (font_path, size);
+        if let Some(font) = self.cached_fonts.get(&couple) {
+            return font.render(text).blended(color).ok()
+                .and_then(|surface| self.renderer.create_texture_from_surface(&surface).ok())
+                .map(Sprite::new)
+        }
+
+        if let Some(font) = font_context.load_font(Path::new(font_path), size).ok() {
+            self.cached_fonts.insert(couple, font);
+            self.ttf_str_sprite(text, font_path, size, color)
+        } else {
+            None
+        }
     }
 }
 
