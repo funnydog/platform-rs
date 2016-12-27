@@ -16,7 +16,7 @@ pub mod data;
 pub mod gfx;
 
 lazy_static! {
-    static ref font_context: Sdl2TtfContext = ::sdl2::ttf::init().unwrap();
+    static ref FONT_CONTEXT: Sdl2TtfContext = ::sdl2::ttf::init().unwrap();
 }
 
 struct_events! {
@@ -67,7 +67,7 @@ impl<'window> Phi<'window> {
                 .map(Sprite::new)
         }
 
-        if let Some(font) = font_context.load_font(Path::new(font_path), size).ok() {
+        if let Some(font) = FONT_CONTEXT.load_font(Path::new(font_path), size).ok() {
             self.cached_fonts.insert(couple, font);
             self.ttf_str_sprite(text, font_path, size, color)
         } else {
