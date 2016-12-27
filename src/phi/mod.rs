@@ -15,10 +15,6 @@ mod events;
 pub mod data;
 pub mod gfx;
 
-lazy_static! {
-    static ref FONT_CONTEXT: Sdl2TtfContext = ::sdl2::ttf::init().unwrap();
-}
-
 struct_events! {
     keyboard: {
         key_escape: Escape,
@@ -37,19 +33,21 @@ struct_events! {
     }
 }
 
-pub struct Phi<'window> {
+pub struct Phi<'window, 'font> {
     pub events: Events,
     pub renderer: Renderer<'window>,
 
-    cached_fonts: HashMap<(&'static str, u16), Font<'window>>,
+    font_ctx: &'font Sdl2TtfContext,
+    cached_fonts: HashMap<(&'static str, u16), Font<'font>>,
 }
 
-impl<'window> Phi<'window> {
-    fn new(events: Events, renderer: Renderer<'window>) -> Phi<'window> {
+impl<'window, 'font> Phi<'window, 'font> {
+    fn new(events: Events, renderer: Renderer<'window>, font_ctx: &'font Sdl2TtfContext) -> Phi<'window, 'font> {
         Phi {
             events: events,
             renderer: renderer,
 
+            font_ctx: font_ctx,
             cached_fonts: HashMap::new(),
         }
     }
@@ -67,7 +65,7 @@ impl<'window> Phi<'window> {
                 .map(Sprite::new)
         }
 
-        if let Some(font) = FONT_CONTEXT.load_font(Path::new(font_path), size).ok() {
+        if let Some(font) = self.font_ctx.load_font(Path::new(font_path), size).ok() {
             self.cached_fonts.insert(couple, font);
             self.ttf_str_sprite(text, font_path, size, color)
         } else {
@@ -132,7 +130,11 @@ pub fn spawn<F>(title: &str, init: F)
     let sdl_context = ::sdl2::init().unwrap();
     let video = sdl_context.video().unwrap();
 
+    // initialize the image support
     let _image_context = ::sdl2::image::init(::sdl2::image::INIT_PNG).unwrap();
+
+    // and the font support
+    let font_ctx = ::sdl2::ttf::init().unwrap();
 
     // create the window
     let window = video.window(title, 800, 600)
@@ -142,7 +144,8 @@ pub fn spawn<F>(title: &str, init: F)
     // Create the context
     let mut context = Phi::new(
         Events::new(sdl_context.event_pump().unwrap()),
-        window.renderer().accelerated().build().unwrap()
+        window.renderer().accelerated().build().unwrap(),
+        &font_ctx
     );
 
     // Create the default view

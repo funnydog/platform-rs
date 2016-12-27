@@ -1,10 +1,6 @@
 // src/main.rs
 
 extern crate glm;
-
-#[macro_use]
-extern crate lazy_static;
-
 extern crate rand;
 extern crate sdl2;
 extern crate time;
