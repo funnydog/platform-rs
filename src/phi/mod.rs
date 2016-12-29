@@ -5,7 +5,8 @@ pub mod data;
 pub mod gfx;
 
 use sdl2::pixels;
-use sdl2::render::Renderer;
+use sdl2::rect::Rect;
+use sdl2::render::{Renderer, Texture, TextureQuery};
 use sdl2::ttf;
 use std::collections;
 use std::path;
@@ -133,6 +134,10 @@ pub fn spawn<F>(title: &str, init: F)
 
     // and the font support
     let font_ctx = ttf::init().unwrap();
+    let fps_font = font_ctx
+        .load_font(path::Path::new("assets/fonts/liberation-mono.ttf"), 20)
+        .ok()
+        .unwrap();
 
     // create the window
     let window = video.window(title, 800, 600)
@@ -155,6 +160,7 @@ pub fn spawn<F>(title: &str, init: F)
     let mut last_second = before;
     let mut fps = 0u16;
 
+    let mut fps_overlay: Option<Texture> = None;
     loop {
         // Frame timing
         let now = ::time::precise_time_ns() / 1000u64;
@@ -170,9 +176,15 @@ pub fn spawn<F>(title: &str, init: F)
         fps += 1;
 
         if now - last_second > 1_000_000 {
-            println!("FPS: {}", fps);
             last_second = now;
+            let surface = fps_font
+                .render(&format!("FPS: {}", fps))
+                .blended(pixels::Color::RGB(255, 0, 255))
+                .ok().unwrap();
             fps = 0;
+            fps_overlay = context.renderer
+                .create_texture_from_surface(&surface)
+                .ok();
         }
 
         // logic and rendering
@@ -182,6 +194,14 @@ pub fn spawn<F>(title: &str, init: F)
             ViewAction::Render(view) => {
                 current_view = view;
                 current_view.render(&mut context);
+
+                if let Some(ref texture) = fps_overlay {
+                    let TextureQuery{ width, height, ..} = texture.query();
+                    let dst = Some(Rect::new(10, 600 - height as i32 - 10,
+                                             width, height));
+                    context.renderer.copy(texture, None, dst);
+                }
+
                 context.renderer.present();
             },
 
