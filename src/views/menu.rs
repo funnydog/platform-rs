@@ -6,7 +6,7 @@ use phi::{Phi, View, ViewAction};
 use sdl2::pixels::Color;
 
 // constants
-const FONT_NAME: &'static str = "assets/belligerent.ttf";
+const FONT_NAME: &'static str = "assets/fonts/belligerent.ttf";
 const LABEL_H: f64 = 50.0;
 const BORDER_WIDTH: f64 = 3.0;
 const BOX_W: f64 = 360.0;
