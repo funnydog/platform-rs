@@ -1,13 +1,13 @@
 // src/views/game.rs
 
-use glm::*;
+use glm;
 
 use phi::{Phi, View, ViewAction};
 use phi::data::Rectangle;
 use phi::gfx::*;
 
 use sdl2::render::Renderer;
-use sdl2::pixels::Color;
+use sdl2::pixels;
 
 use std::io;
 use std::io::prelude::*;
@@ -23,8 +23,8 @@ const TILE_HEIGHT: f64 = 32.0;
 struct GameLevel {
     pub layers: Vec<Sprite>,
     pub tiles: Vec<Vec<Tile>>,
-    pub start: Vector2<f64>,
-    pub exit: Vector2<f64>,
+    pub start: glm::Vector2<f64>,
+    pub exit: glm::Vector2<f64>,
     pub width: usize,
     pub height: usize,
 }
@@ -44,8 +44,8 @@ impl GameLevel {
 
         let height: usize = lines.len();
         let mut yvec: Vec<Vec<Tile>> = Vec::with_capacity(height);
-        let mut exit: Vector2<f64> = Vector2::new(0.0, 0.0);
-        let mut start: Vector2<f64> = Vector2::new(0.0, 0.0);
+        let mut exit: glm::Vector2<f64> = glm::Vector2::new(0.0, 0.0);
+        let mut start: glm::Vector2<f64> = glm::Vector2::new(0.0, 0.0);
         for yth in 0..height {
             let mut xvec: Vec<Tile> = Vec::with_capacity(width);
             for (xth, tile_type) in lines[yth].chars().enumerate() {
@@ -192,8 +192,8 @@ enum PlayerDirection {
 }
 
 struct Player {
-    pos: Vector2<f64>,
-    vel: Vector2<f32>,
+    pos: glm::Vector2<f64>,
+    vel: glm::Vector2<f32>,
 
     // jumping state
     on_ground: bool,
@@ -259,11 +259,11 @@ impl Player {
         ];
 
         Player {
-            pos: Vector2 {
+            pos: glm::Vector2 {
                 x: 64.0,
                 y: 64.0,
             },
-            vel: Vector2 {
+            vel: glm::Vector2 {
                 x: 0.0,
                 y: 0.0,
             },
@@ -306,7 +306,7 @@ impl Player {
         // the base velocity is a combination of horizontal movement control
         // and acceleration downwards due to gravity.
         self.vel.x += dx * PLAYER_MOVE_ACCEL * elapsed as f32;
-        self.vel.y = clamp(
+        self.vel.y = glm::clamp(
             self.vel.y + PLAYER_GRAVITY_ACCEL * elapsed as f32,
             -PLAYER_MAX_FALL_SPEED,
             PLAYER_MAX_FALL_SPEED
@@ -320,8 +320,8 @@ impl Player {
 
             if 0.0_f32 < self.jump_time && self.jump_time <= PLAYER_MAX_JUMP_TIME {
                 self.vel.y = PLAYER_JUMP_LAUNCH_VEL *
-                    (1.0f32 - pow(self.jump_time / PLAYER_MAX_JUMP_TIME,
-                                  PLAYER_JUMP_POWER));
+                    (1.0f32 - glm::pow(self.jump_time / PLAYER_MAX_JUMP_TIME,
+                                       PLAYER_JUMP_POWER));
             } else {
                 self.jump_time = 0.0_f32;
             }
@@ -330,7 +330,7 @@ impl Player {
         }
 
         self.vel.x *= if self.on_ground { PLAYER_GROUND_DRAG } else { PLAYER_AIR_DRAG };
-        self.vel.x = clamp(self.vel.x, -PLAYER_MAX_SPEED, PLAYER_MAX_SPEED);
+        self.vel.x = glm::clamp(self.vel.x, -PLAYER_MAX_SPEED, PLAYER_MAX_SPEED);
 
         let old_position = self.pos;
         self.pos.x = self.pos.x + self.vel.x as f64 * elapsed;
@@ -346,10 +346,10 @@ impl Player {
 
         // the values can go out of bounds but we are saved by the fact that
         // self.level.get_collision() handles out of bounds values
-        let left_tile = floor(bound_rect.x / TILE_WIDTH) as i32;
-        let right_tile = ceil((bound_rect.x + bound_rect.w) / TILE_WIDTH) as i32;
-        let top_tile = floor(bound_rect.y / TILE_HEIGHT) as i32;
-        let bottom_tile = ceil((bound_rect.y + bound_rect.h) / TILE_HEIGHT) as i32;
+        let left_tile = glm::floor(bound_rect.x / TILE_WIDTH) as i32;
+        let right_tile = glm::ceil((bound_rect.x + bound_rect.w) / TILE_WIDTH) as i32;
+        let top_tile = glm::floor(bound_rect.y / TILE_HEIGHT) as i32;
+        let bottom_tile = glm::ceil((bound_rect.y + bound_rect.h) / TILE_HEIGHT) as i32;
 
         self.on_ground = false;
         let mut tile_bounds = Rectangle {
@@ -369,7 +369,7 @@ impl Player {
                             }
 
                             if collision == TileCollision::Impassable || self.on_ground {
-                                self.pos = Vector2 {
+                                self.pos = glm::Vector2 {
                                     x: self.pos.x,
                                     y: self.pos.y + depth.y,
                                 };
@@ -377,7 +377,7 @@ impl Player {
                                 bound_rect.y = self.pos.y;
                             }
                         } else if collision == TileCollision::Impassable {
-                            self.pos = Vector2 {
+                            self.pos = glm::Vector2 {
                                 x: self.pos.x + depth.x,
                                 y: self.pos.y,
                             };
@@ -431,7 +431,7 @@ impl Player {
         }.to_sdl();
 
         if DEBUG {
-            phi.renderer.set_draw_color(Color::RGB(200,200,50));
+            phi.renderer.set_draw_color(pixels::Color::RGB(200,200,50));
             phi.renderer.fill_rect(rect).unwrap();
         }
 
@@ -482,7 +482,7 @@ impl View for GameView {
 
     fn render(&self, phi: &mut Phi) {
         // Clear the screen
-        phi.renderer.set_draw_color(Color::RGB(0,0,50));
+        phi.renderer.set_draw_color(pixels::Color::RGB(0,0,50));
         phi.renderer.clear();
 
         // Draw the player

@@ -1,19 +1,14 @@
 // phi/mod.rs
-use self::gfx::Sprite;
-use sdl2::render::Renderer;
-use sdl2::pixels::Color;
-
-use sdl2::ttf::Font;
-use sdl2::ttf::Sdl2TtfContext;
-
-use std::collections::HashMap;
-use std::path::Path;
-
 #[macro_use]
 mod events;
-
 pub mod data;
 pub mod gfx;
+
+use sdl2::pixels;
+use sdl2::render::Renderer;
+use sdl2::ttf;
+use std::collections;
+use std::path;
 
 struct_events! {
     keyboard: {
@@ -37,18 +32,20 @@ pub struct Phi<'window, 'font> {
     pub events: Events,
     pub renderer: Renderer<'window>,
 
-    font_ctx: &'font Sdl2TtfContext,
-    cached_fonts: HashMap<(&'static str, u16), Font<'font>>,
+    font_ctx: &'font ttf::Sdl2TtfContext,
+    cached_fonts: collections::HashMap<(&'static str, u16), ttf::Font<'font>>,
 }
 
 impl<'window, 'font> Phi<'window, 'font> {
-    fn new(events: Events, renderer: Renderer<'window>, font_ctx: &'font Sdl2TtfContext) -> Phi<'window, 'font> {
+    fn new(events: Events,
+           renderer: Renderer<'window>,
+           font_ctx: &'font ttf::Sdl2TtfContext) -> Phi<'window, 'font> {
         Phi {
             events: events,
             renderer: renderer,
 
             font_ctx: font_ctx,
-            cached_fonts: HashMap::new(),
+            cached_fonts: collections::HashMap::new(),
         }
     }
 
@@ -57,15 +54,16 @@ impl<'window, 'font> Phi<'window, 'font> {
         (w as f64, h as f64)
     }
 
-    pub fn ttf_str_sprite(&mut self, text: &str, font_path: &'static str, size: u16, color: Color) -> Option<Sprite> {
+    pub fn ttf_str_sprite(&mut self, text: &str, font_path: &'static str,
+                          size: u16, color: pixels::Color) -> Option<gfx::Sprite> {
         let couple = (font_path, size);
         if let Some(font) = self.cached_fonts.get(&couple) {
             return font.render(text).blended(color).ok()
                 .and_then(|surface| self.renderer.create_texture_from_surface(&surface).ok())
-                .map(Sprite::new)
+                .map(gfx::Sprite::new)
         }
 
-        if let Some(font) = self.font_ctx.load_font(Path::new(font_path), size).ok() {
+        if let Some(font) = self.font_ctx.load_font(path::Path::new(font_path), size).ok() {
             self.cached_fonts.insert(couple, font);
             self.ttf_str_sprite(text, font_path, size, color)
         } else {
@@ -112,7 +110,7 @@ pub trait View {
 ///             return ViewAction::Quit;
 ///         }
 ///
-///         context.renderer.set_draw_color(Color::RGB(255, 255, 0));
+///         context.renderer.set_draw_color(pixels::Color::RGB(255, 255, 0));
 ///         context.renderer.clear();
 ///         ViewAction::None
 ///     }
@@ -134,7 +132,7 @@ pub fn spawn<F>(title: &str, init: F)
     let _image_context = ::sdl2::image::init(::sdl2::image::INIT_PNG).unwrap();
 
     // and the font support
-    let font_ctx = ::sdl2::ttf::init().unwrap();
+    let font_ctx = ttf::init().unwrap();
 
     // create the window
     let window = video.window(title, 800, 600)

@@ -1,7 +1,7 @@
 // src/phi/data.rs
 
 use glm::Vector2;
-use sdl2::rect::Rect as SdlRect;
+use sdl2::rect;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Rectangle {
@@ -12,10 +12,10 @@ pub struct Rectangle {
 }
 
 impl Rectangle {
-    pub fn to_sdl(self) -> SdlRect {
+    pub fn to_sdl(self) -> rect::Rect {
         assert!(self.w >= 0.0 && self.h >= 0.0);
 
-        SdlRect::new(self.x as i32, self.y as i32, self.w as u32, self.h as u32)
+        rect::Rect::new(self.x as i32, self.y as i32, self.w as u32, self.h as u32)
     }
 
     pub fn move_inside(self, parent: Rectangle) -> Option<Rectangle> {

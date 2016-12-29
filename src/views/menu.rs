@@ -1,8 +1,8 @@
 // src/views/menu.rs
 
-use phi::{Phi, View, ViewAction};
-use phi::data::{Rectangle};
+use phi::data::Rectangle;
 use phi::gfx::{CopySprite, RenderFx, Sprite};
+use phi::{Phi, View, ViewAction};
 use sdl2::pixels::Color;
 
 // constants
@@ -25,11 +25,17 @@ struct Action {
 }
 
 impl Action {
-    fn new(phi: &mut Phi, label: &'static str, func: Box<Fn(&mut Phi) -> ViewAction>) -> Action {
+    fn new(phi: &mut Phi,
+           label: &'static str,
+           func: Box<Fn(&mut Phi) -> ViewAction>) -> Action {
         Action {
             func: func,
-            idle_sprite: phi.ttf_str_sprite(label, FONT_NAME, 32, Color::RGB(220,220,220)).unwrap(),
-            hover_sprite: phi.ttf_str_sprite(label, FONT_NAME, 38, Color::RGB(255,255,255)).unwrap(),
+            idle_sprite: phi
+                .ttf_str_sprite(label, FONT_NAME, 32, Color::RGB(220,220,220))
+                .unwrap(),
+            hover_sprite: phi
+                .ttf_str_sprite(label, FONT_NAME, 38, Color::RGB(255,255,255))
+                .unwrap(),
         }
     }
 }
@@ -47,9 +53,7 @@ impl MenuView {
                     ViewAction::Render(Box::new((::views::game::GameView::new(phi))))
                 })),
 
-                Action::new(phi, "Quit", Box::new(|_| {
-                    ViewAction::Quit
-                })),
+                Action::new(phi, "Quit", Box::new(|_| ViewAction::Quit )),
             ],
 
             selected: 0,
