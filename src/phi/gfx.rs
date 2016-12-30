@@ -277,8 +277,8 @@ impl Tile {
         }
     }
 
-    pub fn load(renderer: &Renderer, path: &str, collision: TileCollision) -> Tile {
-        let sprite = match Sprite::load(renderer, path) {
+    pub fn load(phi: &mut Phi, path: &str, collision: TileCollision) -> Tile {
+        let sprite = match Sprite::load(&mut phi.renderer, path) {
             Some(sprite) => { Some(sprite) },
             None => {
                 panic!("Sprite {} not found!", path);

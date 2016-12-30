@@ -54,7 +54,7 @@ impl GameLevel {
                     'X' => {
                         exit.x = xth as f64 * TILE_WIDTH + TILE_WIDTH / 2.0;
                         exit.y = yth as f64 * TILE_HEIGHT + TILE_HEIGHT / 2.0;
-                        Tile::load(&phi.renderer, "assets/tiles/exit.png", TileCollision::Passable)
+                        Tile::load(phi, "assets/tiles/exit.png", TileCollision::Passable)
                     },
                     'G' => {
                         // TODO: add the gem to the gem list
@@ -62,7 +62,7 @@ impl GameLevel {
                     },
                     '-' => {
                         // floating tile
-                        Tile::load(&phi.renderer, "assets/tiles/platform.png", TileCollision::Platform)
+                        Tile::load(phi, "assets/tiles/platform.png", TileCollision::Platform)
                     },
                     'A' => {
                         // TODO: add the enemy to the enemy list
@@ -117,7 +117,7 @@ impl GameLevel {
         let x = ::rand::random::<usize>() % count;
         let name = format!("{}{}.png", base, x);
 
-        Tile::load(&phi.renderer, &name, collision)
+        Tile::load(phi, &name, collision)
     }
 
     fn get_collision(&self, x: i32, y: i32) -> TileCollision {
