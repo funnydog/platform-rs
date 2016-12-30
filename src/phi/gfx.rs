@@ -142,16 +142,6 @@ impl AnimatedSprite {
         }
     }
 
-    // create a new animated sprite which goes to the next frame `fps` times
-    // every second.
-    pub fn with_fps(sprites: Vec<Sprite>, fps: f64) -> AnimatedSprite {
-        if fps == 0.0 {
-            panic!("Passed 0.0 to AnimatedSprite::with_fps()");
-        }
-
-        AnimatedSprite::new(sprites, 1.0 / fps)
-    }
-
     // number of frames composing the animation.
     pub fn frames(&self) -> usize {
         self.sprites.len()
