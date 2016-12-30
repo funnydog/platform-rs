@@ -211,51 +211,34 @@ struct Player {
 
 impl Player {
     pub fn new(phi: &mut Phi) -> Player {
-        use ::phi::gfx::ASDescr::*;
         let sprites = vec![
-            AnimatedSprite::load(phi, SingleFrame {
-                image_path: "assets/sprites/player/idle.png",
-                frame_x: 0.0,
-                frame_y: 0.0,
-                frame_w: PLAYER_WIDTH,
-                frame_h: PLAYER_HEIGHT,
-            }, 1.0),
+            SpriteBuilder::new(phi, "assets/sprites/player/idle.png")
+                .size(PLAYER_WIDTH, PLAYER_HEIGHT)
+                .finalize(),
 
-            AnimatedSprite::load(phi, LoadFromStart {
-                image_path: "assets/sprites/player/run.png",
-                total_frames: 10,
-                frames_high: 1,
-                frames_wide: 10,
-                frame_w: PLAYER_WIDTH,
-                frame_h: PLAYER_HEIGHT,
-            }, PLAYER_FPS),
+            SpriteBuilder::new(phi, "assets/sprites/player/run.png")
+                 .size(PLAYER_WIDTH, PLAYER_HEIGHT)
+                 .fps(PLAYER_FPS)
+                 .count(10)
+                 .finalize(),
 
-            AnimatedSprite::load(phi, LoadFromStart {
-                image_path: "assets/sprites/player/jump.png",
-                total_frames: 11,
-                frames_high: 1,
-                frames_wide: 11,
-                frame_w: PLAYER_WIDTH,
-                frame_h: PLAYER_HEIGHT,
-            }, PLAYER_FPS),
+            SpriteBuilder::new(phi, "assets/sprites/player/jump.png")
+                .size(PLAYER_WIDTH, PLAYER_HEIGHT)
+                .fps(PLAYER_FPS)
+                .count(11)
+                .finalize(),
 
-            AnimatedSprite::load(phi, LoadFromStart {
-                image_path: "assets/sprites/player/celebrate.png",
-                total_frames: 11,
-                frames_high: 1,
-                frames_wide: 11,
-                frame_w: PLAYER_WIDTH,
-                frame_h: PLAYER_HEIGHT,
-            }, PLAYER_FPS),
+            SpriteBuilder::new(phi, "assets/sprites/player/celebrate.png")
+                .size(PLAYER_WIDTH, PLAYER_HEIGHT)
+                .fps(PLAYER_FPS)
+                .count(11)
+                .finalize(),
 
-            AnimatedSprite::load(phi, LoadFromStart {
-                image_path: "assets/sprites/player/die.png",
-                total_frames: 11,
-                frames_high: 1,
-                frames_wide: 11,
-                frame_w: PLAYER_WIDTH,
-                frame_h: PLAYER_HEIGHT,
-            }, PLAYER_FPS),
+            SpriteBuilder::new(phi, "assets/sprites/player/die.png")
+                .size(PLAYER_WIDTH, PLAYER_HEIGHT)
+                .fps(PLAYER_FPS)
+                .count(11)
+                .finalize(),
         ];
 
         Player {
