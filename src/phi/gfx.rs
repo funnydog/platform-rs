@@ -280,6 +280,87 @@ impl<'window, T: Renderable> CopySprite<T> for Renderer<'window> {
     }
 }
 
+pub struct SpriteBuilder {
+    spritesheet: Sprite,
+    region: Rectangle,
+    width: f64,
+    height: f64,
+    number: usize,
+    fps: f64,
+}
+
+impl SpriteBuilder {
+    pub fn new<'a>(phi: &mut Phi, path: &'a str) -> SpriteBuilder {
+        let spritesheet = Sprite::load(&mut phi.renderer, path).unwrap();
+        let (width, height) = spritesheet.size();
+        let region = Rectangle::with_size(width, height);
+
+        SpriteBuilder {
+            spritesheet: spritesheet,
+            region: region,
+            width: width,
+            height: height,
+            number: 1,
+            fps: 1.0f64,
+        }
+    }
+
+    pub fn region_from(&mut self, x: f64, y: f64) -> &mut SpriteBuilder {
+        self.region.w += self.region.x - x;
+        self.region.h += self.region.y - y;
+        self.region.x = x;
+        self.region.y = y;
+        self
+    }
+
+    pub fn region_size(&mut self, w: f64, h: f64) -> &mut SpriteBuilder {
+        let (width, height) = self.spritesheet.size();
+        assert!(self.region.x + w <= width);
+        assert!(self.region.y + h <= height);
+        self.region.w = w;
+        self.region.h = h;
+        self
+    }
+
+    pub fn size(&mut self, w: f64, h: f64) -> &mut SpriteBuilder {
+        assert!(w <= self.region.w);
+        assert!(h <= self.region.h);
+        self.width = w;
+        self.height = h;
+        self
+    }
+
+    pub fn count(&mut self, number: usize) -> &mut SpriteBuilder {
+        self.number = number;
+        self
+    }
+
+    pub fn fps(&mut self, fps: f64) -> &mut SpriteBuilder {
+        self.fps = fps;
+        self
+    }
+
+    pub fn finalize(&self) -> AnimatedSprite {
+        let mut frames = Vec::with_capacity(self.number);
+
+        let mut frame = Rectangle { w: self.width, h: self.height, .. self.region };
+        for cnt in 0..self.number {
+            frames.push(self.spritesheet.region(frame).unwrap());
+            frame.x += self.width;
+            if !self.region.contains(frame) {
+                frame.x = self.region.x;
+                frame.y += self.height;
+                if !self.region.contains(frame) {
+                    assert!(cnt+1 == self.number);
+                    break;
+                }
+            }
+        }
+
+        AnimatedSprite::new(frames, 1.0 / self.fps)
+    }
+}
+
 #[derive(Clone, Copy, PartialEq)]
 pub enum TileCollision {
     /// a tile which doesn't hinder player motion at all
