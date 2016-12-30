@@ -90,33 +90,6 @@ impl Renderable for Sprite {
     }
 }
 
-pub enum ASDescr<'a> {
-    LoadFromStart {
-        image_path: &'a str,
-        total_frames: usize,
-        frames_high: usize,
-        frames_wide: usize,
-        frame_w: f64,
-        frame_h: f64,
-    },
-
-    SingleFrame {
-        image_path: &'a str,
-        frame_x: f64,
-        frame_y: f64,
-        frame_w: f64,
-        frame_h: f64,
-    },
-
-    LoadFromRegion {
-        image_path: &'a str,
-        rect: Rectangle,
-        total_frames: usize,
-        frame_w: f64,
-        frame_h: f64,
-    },
-}
-
 #[derive(Clone)]
 pub struct AnimatedSprite {
     // frames to be rendered in order
@@ -171,92 +144,6 @@ impl AnimatedSprite {
             self.current_time += self.max_time;
         } else if self.current_time >= self.max_time {
             self.current_time -= self.max_time;
-        }
-    }
-
-    pub fn load(phi: &mut Phi, descr: ASDescr, fps: f64) -> AnimatedSprite {
-        match descr {
-            // many frames starting from 0,0
-            ASDescr::LoadFromStart {
-                image_path,
-                total_frames,
-                frames_high,
-                frames_wide,
-                frame_w,
-                frame_h
-            } => {
-                let spritesheet = Sprite::load(&mut phi.renderer, image_path).unwrap();
-                let mut frames = Vec::with_capacity(total_frames);
-
-                for yth in 0..frames_high {
-                    for xth in 0..frames_wide {
-                        if frames_wide * yth + xth >= total_frames {
-                            break;
-                        }
-
-                        frames.push(
-                            spritesheet.region(Rectangle {
-                                w: frame_w,
-                                h: frame_h,
-                                x: frame_w * xth as f64,
-                                y: frame_h * yth as f64,
-                            }).unwrap());
-                    }
-                }
-
-                AnimatedSprite::new(frames, 1.0 / fps)
-            },
-
-            ASDescr::LoadFromRegion {
-                image_path,
-                rect,
-                total_frames,
-                frame_w,
-                frame_h,
-            } => {
-                let spritesheet = Sprite::load(&mut phi.renderer, image_path).unwrap();
-                let mut frames = Vec::with_capacity(total_frames);
-                let mut region = Rectangle {
-                    x: rect.x,
-                    y: rect.y,
-                    w: frame_w,
-                    h: frame_h,
-                };
-
-                for _ in 0..total_frames {
-                    frames.push(spritesheet.region(region).unwrap());
-                    if region.x + region.w + frame_w > rect.x + rect.w {
-                        region.y = rect.y;
-                        region.x = rect.x;
-
-                        if region.y + region.h > rect.y + rect.w {
-                            panic!("region exceeded");
-                        }
-                    }
-                }
-
-                AnimatedSprite::new(frames, 1.0 / fps)
-            },
-
-            // one still frame
-            ASDescr::SingleFrame {
-                image_path,
-                frame_x,
-                frame_y,
-                frame_w,
-                frame_h,
-            } => {
-                let spritesheet = Sprite::load(&mut phi.renderer, image_path).unwrap();
-                AnimatedSprite::new(
-                    vec![
-                        spritesheet.region(Rectangle {
-                            x: frame_x,
-                            y: frame_y,
-                            w: frame_w,
-                            h: frame_h,
-                        }).unwrap(),
-                    ], 0.0)
-            },
         }
     }
 }
