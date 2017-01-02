@@ -23,7 +23,7 @@ const TILE_HEIGHT: f64 = 32.0;
 struct GameLevel {
     pub layers: Vec<Sprite>,
     pub tiles: Vec<Vec<Tile>>,
-    pub gems: Vec<Gem>,
+    pub gems: Vec<Box<Gem>>,
     pub start: glm::Vector2<f64>,
     pub exit: glm::Vector2<f64>,
     pub width: usize,
@@ -35,7 +35,7 @@ impl GameLevel {
         let f = File::open(path).unwrap();
         let file = BufReader::new(&f);
 
-        let mut gems: Vec<Gem> = Vec::new();
+        let mut gems: Vec<Box<Gem>> = Vec::new();
         let gem_sprite = Sprite::load(&phi.renderer, "assets/sprites/gem.png").unwrap();
 
         let mut lines: Vec<String> = Vec::new();
@@ -73,7 +73,7 @@ impl GameLevel {
                         );
 
                         // put the gem into the gem list
-                        gems.push(Gem::new(&gem_sprite, pos));
+                        gems.push(Box::new(Gem::new(&gem_sprite, pos)));
                         Tile::new(None, TileCollision::Passable)
                     },
                     '-' => {
@@ -154,8 +154,16 @@ impl GameLevel {
 
     pub fn update(&mut self, phi: &mut Phi, elapsed: f64) {
         // update the gems
-        for gem in &mut self.gems {
-            gem.update(phi, elapsed);
+        let mut old_gems = ::std::mem::replace(&mut self.gems, vec![]);
+        while let Some(mut gem) = old_gems.pop() {
+            // TODO: instead of false check for intersection with player
+            if false {
+                // TODO: add the gem points to the score
+                // TODO: collect the gem
+            } else {
+                gem.update(phi, elapsed);
+                self.gems.push(gem);
+            }
         }
 
         // TODO: falling off the bottom kills the player
