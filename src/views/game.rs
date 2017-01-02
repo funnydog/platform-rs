@@ -55,8 +55,12 @@ impl GameLevel {
             let mut xvec: Vec<Tile> = Vec::with_capacity(width);
             for (xth, tile_type) in lines[yth].chars().enumerate() {
                 xvec.push(match tile_type {
-                    '.' => { Tile::new(None, TileCollision::Passable) },
+                    '.' => {
+                        // Blank space
+                        Tile::new(None, TileCollision::Passable)
+                    },
                     'X' => {
+                        // Exit point
                         exit.x = xth as f64 * TILE_WIDTH + TILE_WIDTH / 2.0;
                         exit.y = yth as f64 * TILE_HEIGHT + TILE_HEIGHT / 2.0;
                         Tile::load(phi, "assets/tiles/exit.png", TileCollision::Passable)
@@ -73,7 +77,7 @@ impl GameLevel {
                         Tile::new(None, TileCollision::Passable)
                     },
                     '-' => {
-                        // floating tile
+                        // Floating platform
                         Tile::load(phi, "assets/tiles/platform.png", TileCollision::Platform)
                     },
                     'A' => {
@@ -89,20 +93,25 @@ impl GameLevel {
                         Tile::new(None, TileCollision::Passable)
                     },
                     'D' => {
+                        // TODO: add the enemy to the enemy list
                         Tile::new(None, TileCollision::Passable)
                     },
                     '~' => {
+                        // Platform block
                         GameLevel::load_random_tile(phi, "assets/tiles/blockb", 2, TileCollision::Platform)
                     },
                     ':' => {
+                        // Passable block
                         GameLevel::load_random_tile(phi, "assets/tiles/blockb", 2, TileCollision::Passable)
                     },
                     '1' => {
+                        // player start point
                         start.x = xth as f64 * TILE_WIDTH + TILE_WIDTH / 2.0;
                         start.y = yth as f64 * TILE_HEIGHT + TILE_HEIGHT / 2.0;
                         Tile::new(None, TileCollision::Passable)
                     },
                     '#' => {
+                        // Impassable block
                         GameLevel::load_random_tile(phi, "assets/tiles/blocka", 7, TileCollision::Impassable)
                     },
                     _ => { panic!("Unsupported tile type '{}'", tile_type); }
@@ -238,8 +247,6 @@ struct Player {
     sprites: Vec<AnimatedSprite>,
     current: PlayerFrame,
     direction: PlayerDirection,
-
-    // level
     level: GameLevel,
 }
 
