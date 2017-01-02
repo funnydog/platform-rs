@@ -167,16 +167,11 @@ impl GameLevel {
         // Draw the background layers
         for layer in &self.layers {
             let (w, h) = layer.size();
-            phi.renderer.copy_sprite(
-                layer,
-                &Rectangle {
-                    x: 0.0,
-                    y: 0.0,
-                    w: w,
-                    h: h,
-                }.to_sdl(),
-                RenderFx::None,
-            );
+            let dest = Rectangle {
+                x: 0.0, y: 0.0,
+                w: w, h: h,
+            };
+            layer.render(&mut phi.renderer, &dest.to_sdl(), RenderFx::None);
         }
 
         // Draw the tiles
@@ -184,7 +179,7 @@ impl GameLevel {
         for y in 0..self.tiles.len() {
             for x in 0..self.tiles[y].len() {
                 let srect = rect.to_sdl();
-                phi.renderer.copy_sprite(&self.tiles[y][x], &srect, RenderFx::None);
+                self.tiles[y][x].render(&mut phi.renderer, &srect, RenderFx::None);
                 rect.x += TILE_WIDTH;
             }
             rect.x = 0.0;
@@ -283,14 +278,8 @@ impl Player {
         ];
 
         Player {
-            pos: glm::Vector2 {
-                x: 64.0,
-                y: 64.0,
-            },
-            vel: glm::Vector2 {
-                x: 0.0,
-                y: 0.0,
-            },
+            pos: glm::Vector2::new(64.0, 64.0),
+            vel: glm::Vector2::new(64.0, 64.0),
 
             on_ground: true,
             is_jumping: false,
@@ -300,7 +289,6 @@ impl Player {
             sprites: sprites,
             current: PlayerFrame::Idle,
             direction: PlayerDirection::Right,
-
             level: GameLevel::load(phi, "assets/level-0.txt"),
         }
     }
