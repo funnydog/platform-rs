@@ -345,7 +345,7 @@ impl Player {
                 let collision = self.level.get_collision(xth, yth);
 
                 if collision != TileCollision::Passable {
-                    if let Some(depth) = bound_rect.interdepth(tile_bounds) {
+                    if let Some(depth) = bound_rect.intersection_depth(&tile_bounds) {
                         if depth.y.abs() < depth.x.abs() || collision == TileCollision::Platform {
                             if self.previous_bottom <= tile_bounds.y as f32 {
                                 self.on_ground = true;

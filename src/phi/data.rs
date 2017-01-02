@@ -78,29 +78,34 @@ impl Rectangle {
         }
     }
 
-    pub fn interdepth(&self, other: Rectangle) -> Option<Vector2<f64>> {
-        let ca = self.center();
-        let cb = other.center();
+    /// Signed depth of intersection between two rectangles.
+    ///
+    /// The function returns the amount of overlap between two rectangles.
+    /// The amount can be negative depending on which sides the rectangles
+    /// intersect.
+    /// The caller can determine the correct direction to push the objects
+    /// in order to resolve the collisions.
+    /// If the rectangles don't intersect a vector of zero is returned.
+    pub fn intersection_depth(&self, other: &Rectangle) -> Option<Vector2<f64>> {
 
-        let dis = ca - cb;
+        let center_a = self.center();
+        let center_b = other.center();
+
+        // distance between the centers
+        let dis = center_a - center_b;
+
+        // minimum non intersecting distance
         let min = Vector2 {
             x: (self.w + other.w) / 2.0,
             y: (self.h + other.h) / 2.0,
         };
+
         if dis.x.abs() >= min.x || dis.y.abs() >= min.y {
             None
         } else {
             Some(Vector2 {
-                x: if dis.x > 0.0 {
-                    min.x - dis.x
-                } else {
-                    -min.x - dis.x
-                },
-                y: if dis.y > 0.0 {
-                    min.y - dis.y
-                } else {
-                    -min.y - dis.y
-                }
+                x: if dis.x > 0.0 { min.x - dis.x } else { -min.x - dis.x },
+                y: if dis.y > 0.0 { min.y - dis.y } else { -min.y - dis.y },
             })
         }
     }
