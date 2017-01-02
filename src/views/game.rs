@@ -23,6 +23,7 @@ const TILE_HEIGHT: f64 = 32.0;
 struct GameLevel {
     pub layers: Vec<Sprite>,
     pub tiles: Vec<Vec<Tile>>,
+    pub gems: Vec<Gem>,
     pub start: glm::Vector2<f64>,
     pub exit: glm::Vector2<f64>,
     pub width: usize,
@@ -33,6 +34,10 @@ impl GameLevel {
     pub fn load(phi: &mut Phi, path: &str) -> GameLevel {
         let f = File::open(path).unwrap();
         let file = BufReader::new(&f);
+
+        let mut gems: Vec<Gem> = Vec::new();
+        let gem_sprite = Sprite::load(&phi.renderer, "assets/sprites/gem.png").unwrap();
+
         let mut lines: Vec<String> = Vec::new();
         let mut width: usize = 0;
 
@@ -57,7 +62,14 @@ impl GameLevel {
                         Tile::load(phi, "assets/tiles/exit.png", TileCollision::Passable)
                     },
                     'G' => {
-                        // TODO: add the gem to the gem list
+                        // Gem
+                        let pos = glm::Vector2::new(
+                            xth as f64 * TILE_WIDTH + TILE_WIDTH / 2.0,
+                            yth as f64 * TILE_HEIGHT + TILE_HEIGHT / 2.0,
+                        );
+
+                        // put the gem into the gem list
+                        gems.push(Gem::new(&gem_sprite, pos));
                         Tile::new(None, TileCollision::Passable)
                     },
                     '-' => {
@@ -106,6 +118,7 @@ impl GameLevel {
                 Sprite::load(&mut phi.renderer, "assets/background2.png").unwrap(),
             ],
             tiles: yvec,
+            gems: gems,
             start: start,
             exit: exit,
             width: width,
@@ -128,6 +141,17 @@ impl GameLevel {
         } else {
             self.tiles[y as usize][x as usize].collision
         }
+    }
+
+    pub fn update(&mut self, phi: &mut Phi, elapsed: f64) {
+        // update the gems
+        for gem in &mut self.gems {
+            gem.update(phi, elapsed);
+        }
+
+        // TODO: falling off the bottom kills the player
+
+        // TODO: update the enemies
     }
 
     pub fn render(&self, phi: &mut Phi) {
@@ -157,6 +181,16 @@ impl GameLevel {
             rect.x = 0.0;
             rect.y += TILE_HEIGHT;
         }
+
+        // Render the gems
+        for gem in &self.gems {
+            gem.render(phi);
+        }
+
+        // TODO: invert the logic
+        // render the player
+
+        // render the enemies
     }
 }
 
@@ -276,6 +310,8 @@ impl Player {
     pub fn update(&mut self, phi: &mut Phi, elapsed: f64) {
         use self::PlayerFrame::*;
         use self::PlayerDirection::*;
+
+        self.level.update(phi, elapsed);
 
         // apply physics
         let dx = if phi.events.key_left {
@@ -423,6 +459,61 @@ impl Player {
             PlayerDirection::Right => RenderFx::FlipX,
         };
         phi.renderer.copy_sprite(cursprite, &rect, fx);
+    }
+}
+
+const GEM_WIDTH: f64 = 32.0;
+const GEM_HEIGHT: f64 = 32.0;
+
+struct Gem {
+    sprite: Sprite,
+    origin: glm::Vector2<f64>,
+
+    // TODO:
+    // collectedSound: Chunk,
+    // color: pixels::Color,
+
+    pos: glm::Vector2<f64>,
+    time: f64,
+    bounce: f64,
+}
+
+impl Gem {
+    fn new<'a>(sprite: &'a Sprite, pos: glm::Vector2<f64>) -> Gem {
+        let sprite = sprite.clone();
+        let (width, height) = sprite.size();
+        let origin = glm::Vector2::new(width / 2.0, height / 2.0);
+        let pos = pos - origin;
+        Gem {
+            sprite: sprite,
+            origin: origin,
+            pos: pos,
+            time: pos.x * 0.75,
+            bounce: 0.0,
+        }
+    }
+
+    // fn bounding_circle(&self) -> Circle<f64> {
+    //     Circle { position: self.pos, TILE_WIDTH / 3.0f }
+    // }
+
+    pub fn update(&mut self, phi: &mut Phi, elapsed: f64) {
+        use std::f64;
+        self.time += elapsed * 6.0;
+        while self.time > f64::consts::PI {
+            self.time -= f64::consts::PI * 2.0;
+        }
+        self.bounce = f64::sin(self.time) * GEM_HEIGHT * 0.18;
+    }
+
+    pub fn render(&self, phi: &mut Phi) {
+         let rect = Rectangle {
+            x: self.pos.x,
+            y: self.pos.y + self.bounce,
+            w: GEM_WIDTH,
+            h: GEM_HEIGHT,
+        }.to_sdl();
+        self.sprite.render(&mut phi.renderer, &rect, RenderFx::None);
     }
 }
 
