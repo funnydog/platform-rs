@@ -6,10 +6,9 @@ use phi::{Phi, View, ViewAction};
 use phi::data::Rectangle;
 use phi::gfx::*;
 
-use sdl2::render::Renderer;
 use sdl2::pixels;
 
-use std::io;
+use std::cell::RefCell;
 use std::io::prelude::*;
 use std::io::BufReader;
 use std::fs::File;
@@ -21,6 +20,7 @@ const TILE_WIDTH: f64 = 40.0;
 const TILE_HEIGHT: f64 = 32.0;
 
 struct GameLevel {
+    pub player: RefCell<Player>,
     pub layers: Vec<Sprite>,
     pub tiles: Vec<Vec<Tile>>,
     pub gems: Vec<Box<Gem>>,
@@ -107,7 +107,7 @@ impl GameLevel {
                     '1' => {
                         // player start point
                         start.x = xth as f64 * TILE_WIDTH + TILE_WIDTH / 2.0;
-                        start.y = yth as f64 * TILE_HEIGHT + TILE_HEIGHT / 2.0;
+                        start.y = yth as f64 * TILE_HEIGHT - TILE_HEIGHT - 1.0;
                         Tile::new(None, TileCollision::Passable)
                     },
                     '#' => {
@@ -121,6 +121,7 @@ impl GameLevel {
         }
 
         GameLevel {
+            player: RefCell::new(Player::new(phi, start.x, start.y)),
             layers: vec![
                 Sprite::load(&mut phi.renderer, "assets/background0.png").unwrap(),
                 Sprite::load(&mut phi.renderer, "assets/background1.png").unwrap(),
@@ -142,7 +143,7 @@ impl GameLevel {
         Tile::load(phi, &name, collision)
     }
 
-    fn get_collision(&self, x: i32, y: i32) -> TileCollision {
+    pub fn get_collision(&self, x: i32, y: i32) -> TileCollision {
         if y < 0 || y >= self.height as i32 {
             TileCollision::Passable
         } else if x < 0 || x >= self.width as i32 {
@@ -153,22 +154,38 @@ impl GameLevel {
     }
 
     pub fn update(&mut self, phi: &mut Phi, elapsed: f64) {
-        // update the gems
-        let mut old_gems = ::std::mem::replace(&mut self.gems, vec![]);
-        while let Some(mut gem) = old_gems.pop() {
-            // TODO: instead of false check for intersection with player
-            if false {
-                // TODO: add the gem points to the score
-                // TODO: collect the gem
-            } else {
-                gem.update(phi, elapsed);
-                self.gems.push(gem);
+
+        if false || false {
+            // TODO: player dead or timer expired
+        } else if false {
+            // TODO: player reached the exit
+        } else {
+            // TODO: update the timer
+
+            // TODO: update the player
+            {
+                let world = &*self;
+                self.player.borrow_mut().update(phi, world, elapsed);
             }
+
+            // update the gems
+            let mut old_gems = ::std::mem::replace(&mut self.gems, vec![]);
+            while let Some(mut gem) = old_gems.pop() {
+                // TODO: instead of false check for intersection with player
+                if false {
+                    // TODO: add the gem points to the score
+                    // TODO: collect the gem
+                } else {
+                    if let Some(gem) = gem.update(phi, elapsed) {
+                        self.gems.push(gem);
+                    }
+                }
+            }
+
+            // TODO: falling off the bottom kills the player
+
+            // TODO: update the enemies
         }
-
-        // TODO: falling off the bottom kills the player
-
-        // TODO: update the enemies
     }
 
     pub fn render(&self, phi: &mut Phi) {
@@ -199,8 +216,8 @@ impl GameLevel {
             gem.render(phi);
         }
 
-        // TODO: invert the logic
         // render the player
+        self.player.borrow().render(phi);
 
         // render the enemies
     }
@@ -250,11 +267,11 @@ struct Player {
     sprites: Vec<AnimatedSprite>,
     current: PlayerFrame,
     direction: PlayerDirection,
-    level: GameLevel,
+    local_bounds: Rectangle,
 }
 
 impl Player {
-    pub fn new(phi: &mut Phi) -> Player {
+    pub fn new(phi: &mut Phi, x: f64, y: f64) -> Player {
         let sprites = vec![
             SpriteBuilder::new(phi, "assets/sprites/player/idle.png")
                 .size(PLAYER_WIDTH, PLAYER_HEIGHT)
@@ -285,8 +302,17 @@ impl Player {
                 .finalize(),
         ];
 
+        let width = PLAYER_WIDTH * 0.4;
+        let height = PLAYER_HEIGHT * 0.8;
+        let local_bounds = Rectangle {
+            x: (PLAYER_WIDTH - width) / 2.0,
+            y: (PLAYER_HEIGHT - height),
+            w: width,
+            h: height,
+        };
+
         Player {
-            pos: glm::Vector2::new(64.0, 64.0),
+            pos: glm::Vector2::new(x, y),
             vel: glm::Vector2::new(64.0, 64.0),
 
             on_ground: true,
@@ -297,80 +323,72 @@ impl Player {
             sprites: sprites,
             current: PlayerFrame::Idle,
             direction: PlayerDirection::Right,
-            level: GameLevel::load(phi, "assets/level-0.txt"),
+            local_bounds: local_bounds,
         }
     }
 
     pub fn bounding_rect(&self) -> Rectangle {
         Rectangle {
-            x: self.pos.x,
-            y: self.pos.y,
-            w: PLAYER_WIDTH,
-            h: PLAYER_HEIGHT,
+            x: self.pos.x + self.local_bounds.x,
+            y: self.pos.y + self.local_bounds.y,
+            ..self.local_bounds
         }
     }
 
-    pub fn update(&mut self, phi: &mut Phi, elapsed: f64) {
-        use self::PlayerFrame::*;
-        use self::PlayerDirection::*;
+    pub fn update(&mut self, phi: &mut Phi, level: &GameLevel, elapsed: f64) {
+            use self::PlayerFrame::*;
+            use self::PlayerDirection::*;
 
-        self.level.update(phi, elapsed);
+            // apply physics
+            let dx = if phi.events.key_left {
+                -1.0f32
+            } else if phi.events.key_right {
+                1.0f32
+            } else {
+                0.0f32
+            };
 
-        // apply physics
-        let dx = if phi.events.key_left {
-            -1.0f32
-        } else if phi.events.key_right {
-            1.0f32
-        } else {
-            0.0f32
-        };
+            // the base velocity is a combination of horizontal movement control
+            // and acceleration downwards due to gravity.
+            self.vel.x += dx * PLAYER_MOVE_ACCEL * elapsed as f32;
+            self.vel.y = glm::clamp(
+                self.vel.y + PLAYER_GRAVITY_ACCEL * elapsed as f32,
+                -PLAYER_MAX_FALL_SPEED,
+                PLAYER_MAX_FALL_SPEED
+            );
 
-        // the base velocity is a combination of horizontal movement control
-        // and acceleration downwards due to gravity.
-        self.vel.x += dx * PLAYER_MOVE_ACCEL * elapsed as f32;
-        self.vel.y = glm::clamp(
-            self.vel.y + PLAYER_GRAVITY_ACCEL * elapsed as f32,
-            -PLAYER_MAX_FALL_SPEED,
-            PLAYER_MAX_FALL_SPEED
-        );
+            // apply the jump logic
+            if phi.events.key_up {
+                if (!self.is_jumping && self.on_ground) || self.jump_time > 0.0f32 {
+                    self.jump_time += elapsed as f32;
+                }
 
-        // apply the jump logic
-        if phi.events.key_up {
-            if (!self.is_jumping && self.on_ground) || self.jump_time > 0.0f32 {
-                self.jump_time += elapsed as f32;
-            }
-
-            if 0.0_f32 < self.jump_time && self.jump_time <= PLAYER_MAX_JUMP_TIME {
-                self.vel.y = PLAYER_JUMP_LAUNCH_VEL *
-                    (1.0f32 - glm::pow(self.jump_time / PLAYER_MAX_JUMP_TIME,
-                                       PLAYER_JUMP_POWER));
+                if 0.0_f32 < self.jump_time && self.jump_time <= PLAYER_MAX_JUMP_TIME {
+                    self.vel.y = PLAYER_JUMP_LAUNCH_VEL *
+                        (1.0f32 - glm::pow(self.jump_time / PLAYER_MAX_JUMP_TIME,
+                                           PLAYER_JUMP_POWER));
+                } else {
+                    self.jump_time = 0.0_f32;
+                }
             } else {
                 self.jump_time = 0.0_f32;
             }
-        } else {
-            self.jump_time = 0.0_f32;
-        }
 
-        self.vel.x *= if self.on_ground { PLAYER_GROUND_DRAG } else { PLAYER_AIR_DRAG };
-        self.vel.x = glm::clamp(self.vel.x, -PLAYER_MAX_SPEED, PLAYER_MAX_SPEED);
+            self.vel.x *= if self.on_ground { PLAYER_GROUND_DRAG } else { PLAYER_AIR_DRAG };
+            self.vel.x = glm::clamp(self.vel.x, -PLAYER_MAX_SPEED, PLAYER_MAX_SPEED);
 
-        let old_position = self.pos;
-        self.pos.x = self.pos.x + self.vel.x as f64 * elapsed;
-        self.pos.y = self.pos.y + self.vel.y as f64 * elapsed;
+            let old_position = self.pos;
+            self.pos.x = self.pos.x + self.vel.x as f64 * elapsed;
+            self.pos.y = self.pos.y + self.vel.y as f64 * elapsed;
 
         // handle collisions
-        let mut bound_rect = Rectangle {
-            x: self.pos.x,
-            y: self.pos.y,
-            w: PLAYER_WIDTH,
-            h: PLAYER_HEIGHT,
-        };
+        let mut bound_rect = self.bounding_rect();
 
         // the values can go out of bounds but we are saved by the fact that
-        // self.level.get_collision() handles out of bounds values
+        // level.get_collision() handles out of bounds values
         let left_tile = glm::floor(bound_rect.x / TILE_WIDTH) as i32;
-        let right_tile = glm::ceil((bound_rect.x + bound_rect.w) / TILE_WIDTH) as i32;
         let top_tile = glm::floor(bound_rect.y / TILE_HEIGHT) as i32;
+        let right_tile = glm::ceil((bound_rect.x + bound_rect.w) / TILE_WIDTH) as i32;
         let bottom_tile = glm::ceil((bound_rect.y + bound_rect.h) / TILE_HEIGHT) as i32;
 
         self.on_ground = false;
@@ -379,9 +397,10 @@ impl Player {
             y: top_tile as f64 * TILE_HEIGHT,
             w: TILE_WIDTH, h: TILE_HEIGHT
         };
+
         for yth in top_tile..bottom_tile {
             for xth in left_tile..right_tile {
-                let collision = self.level.get_collision(xth, yth);
+                let collision = level.get_collision(xth, yth);
 
                 if collision != TileCollision::Passable {
                     if let Some(depth) = bound_rect.intersection_depth(&tile_bounds) {
@@ -391,20 +410,12 @@ impl Player {
                             }
 
                             if collision == TileCollision::Impassable || self.on_ground {
-                                self.pos = glm::Vector2 {
-                                    x: self.pos.x,
-                                    y: self.pos.y + depth.y,
-                                };
-                                bound_rect.x = self.pos.x;
-                                bound_rect.y = self.pos.y;
+                                self.pos.y += depth.y;
+                                bound_rect.y += depth.y;
                             }
                         } else if collision == TileCollision::Impassable {
-                            self.pos = glm::Vector2 {
-                                x: self.pos.x + depth.x,
-                                y: self.pos.y,
-                            };
-                            bound_rect.x = self.pos.x;
-                            bound_rect.y = self.pos.y;
+                            self.pos.x += depth.x;
+                            bound_rect.x += depth.x;
                         }
                     }
                 }
@@ -442,26 +453,22 @@ impl Player {
     }
 
     pub fn render(&self, phi: &mut Phi) {
-        self.level.render(phi);
-
         let cursprite = &self.sprites[self.current as usize];
-        let rect = Rectangle {
-            x: self.pos.x,
-            y: self.pos.y,
-            w: PLAYER_WIDTH,
-            h: PLAYER_HEIGHT,
-        }.to_sdl();
-
         if DEBUG {
+            let bound_rect = self.bounding_rect().to_sdl();
             phi.renderer.set_draw_color(pixels::Color::RGB(200,200,50));
-            phi.renderer.fill_rect(rect).unwrap();
+            phi.renderer.fill_rect(bound_rect).unwrap();
         }
 
         let fx = match self.direction {
             PlayerDirection::Left => RenderFx::None,
             PlayerDirection::Right => RenderFx::FlipX,
         };
-        phi.renderer.copy_sprite(cursprite, &rect, fx);
+        let rect = Rectangle {
+            x: self.pos.x, y: self.pos.y,
+            w: PLAYER_WIDTH, h: PLAYER_HEIGHT,
+        }.to_sdl();
+        cursprite.render(&mut phi.renderer, &rect, fx);
     }
 }
 
@@ -500,16 +507,17 @@ impl Gem {
     //     Circle { position: self.pos, TILE_WIDTH / 3.0f }
     // }
 
-    pub fn update(&mut self, phi: &mut Phi, elapsed: f64) {
+    fn update(mut self: Box<Self>, phi: &mut Phi, elapsed: f64) -> Option<Box<Gem>> {
         use std::f64;
         self.time += elapsed * 6.0;
         while self.time > f64::consts::PI {
             self.time -= f64::consts::PI * 2.0;
         }
         self.bounce = f64::sin(self.time) * GEM_HEIGHT * 0.18;
+        Some(self)
     }
 
-    pub fn render(&self, phi: &mut Phi) {
+    fn render(&self, phi: &mut Phi) {
          let rect = Rectangle {
             x: self.pos.x,
             y: self.pos.y + self.bounce,
@@ -521,13 +529,13 @@ impl Gem {
 }
 
 pub struct GameView {
-    player: Player,
+    level: GameLevel,
 }
 
 impl GameView {
     pub fn new(phi: &mut Phi) -> GameView {
         GameView {
-            player: Player::new(phi),
+            level: GameLevel::load(phi, "assets/level-0.txt"),
         }
     }
 }
@@ -546,13 +554,7 @@ impl View for GameView {
         }
 
         // update the player
-        self.player.update(phi, elapsed);
-
-        // TODO: update the gems
-
-        // TODO: check if the player fell off the bottom of the level
-
-        // TODO: update the enemies
+        self.level.update(phi, elapsed);
 
         ViewAction::Render(self)
     }
@@ -563,8 +565,6 @@ impl View for GameView {
         phi.renderer.clear();
 
         // Draw the player
-        self.player.render(phi);
-
-        // TODO: Draw the enemies
+        self.level.render(phi);
     }
 }
